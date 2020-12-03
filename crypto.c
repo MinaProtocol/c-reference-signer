@@ -114,23 +114,6 @@ unsigned int field_eq(const Field a, const Field b)
     }
 }
 
-/*
-void field_from_msb_bytes(Field c, const FieldBytes a)
-{
-    uint64_t limbs[4] = { 0, 0, 0, 0 };
-    const size_t BYTES_PER_LIMB = 8;
-    for (size_t i = 0; i < 4; ++i) {
-      for (size_t j = 0; j < BYTES_PER_LIMB; ++k) {
-        size_t k = FIELD_BYTES - (BYTES_PER_LIMB * i + j)
-
-        limbs[i] = FIELD_BYTES - (
-      }
-      limbs[i] = bytes
-    }
-
-    fiat_pasta_fp_to_montgomery(c, limbs);
-} */
-
 void scalar_copy(Scalar c, const Scalar a)
 {
     fiat_pasta_fq_copy(c, a);
@@ -602,13 +585,7 @@ size_t roinput_to_fields(uint64_t *out, const ROInput *input) {
 
   return output_len;
 }
-// Ledger uses:
-// - BIP39 to generate and interpret the master seed, which produces
-//   the 24 words shown on the device at startup.
-// - BIP32 for HD key derivation (using the child key derivation
-//   function)
-// - BIP44 for HD account derivation (so e.g. btc and mina keys don't
-//   clash)
+
 void generate_keypair(Keypair *keypair, uint32_t account)
 {
     if (!keypair) {
@@ -650,48 +627,6 @@ void generate_keypair(Keypair *keypair, uint32_t account)
     return;
 }
 
-/*
-int get_address(char *address, size_t len, const Affine *pub_key)
-{
-    if (len != MINA_ADDRESS_LEN) {
-        THROW(INVALID_PARAMETER);
-    }
-
-    struct bytes {
-        uint8_t version;
-        uint8_t payload[35];
-        uint8_t checksum[4];
-    } raw;
-
-    raw.version    = 0xcb; // version for base58 check
-    raw.payload[0] = 0x01; // non_zero_curve_point version
-    raw.payload[1] = 0x01; // compressed_poly version
-    // reversed x-coordinate
-    for (size_t i = 0; i < sizeof(pub_key->x); i++) {
-        raw.payload[i + 2] = pub_key->x[sizeof(pub_key->x) - i - 1];
-    }
-    // y-coordinate parity
-    raw.payload[34] = is_odd(pub_key->y);
-
-    uint8_t hash1[32];
-    cx_hash_sha256((const unsigned char *)&raw, 36, hash1, 32);
-
-    uint8_t hash2[32];
-    cx_hash_sha256(hash1, 32, hash2, 32);
-    os_memmove(raw.checksum, hash2, 4);
-
-    // Encode as address
-    int result = encodeBase58((unsigned char *)&raw, sizeof(raw), (unsigned char *)address, len);
-    if (result < 0) {
-        address[0] = '\0';
-    }
-    else {
-        address[MINA_ADDRESS_LEN - 1] = '\0';
-    }
-
-    return result;
-} */
-
 void generate_pubkey(Affine *pub_key, const Scalar priv_key)
 {
     affine_scalar_mul(pub_key, priv_key, &AFFINE_ONE);
@@ -730,10 +665,8 @@ void message_derive(Scalar out, const Keypair *kp, const ROInput *msg)
     ROInput input;
     uint64_t input_fields[20];
 
-    // size_t fields_capacity = msg->fields_len + 2;
     size_t bits_capacity = msg->bits_len + 255;
 
-    // input.fields = (uint64_t *) malloc(sizeof(uint64_t) * fields_capacity);
     input.fields = input_fields;
     input.bits = malloc(sizeof(bool) * bits_capacity);
 
@@ -764,8 +697,6 @@ void message_derive(Scalar out, const Keypair *kp, const ROInput *msg)
     packed_bit_array_set(hash_out, 254, 0);
     fiat_pasta_fq_to_montgomery(out, (uint64_t*) hash_out);
 
-    // free(input.fields);
-    // free(input_bits);
     free(input_bytes);
 }
 
@@ -837,7 +768,6 @@ void sign(Signature *sig, const Keypair *kp, const Transaction *transaction)
     roinput_add_uint64(&input, transaction->amount);
     roinput_add_bit(&input, transaction->token_locked);
 
-    // k = message_derive(msg.field_elements + kp.pub + msg.bitstring + kp.priv)
     Scalar k;
     message_derive(k, kp, &input);
 
