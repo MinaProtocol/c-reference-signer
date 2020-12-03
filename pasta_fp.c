@@ -2196,17 +2196,13 @@ void fiat_pasta_fp_sqrt(uint64_t x[4], const uint64_t value[4]) {
             m += 1;
         }
 
-          printf("4\n");
         int j = v-m-1;
         fiat_pasta_fp_copy(w, z);
 
         while (j > 0)
         {
-          printf("5\n");
             fiat_pasta_fp_copy(tmp, w);
-          printf("6\n");
             fiat_pasta_fp_square(w, tmp);
-          printf("7\n");
             --j;
         } // w = z^2^(v-m-1)
 
