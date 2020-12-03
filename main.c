@@ -1,7 +1,9 @@
 #include <stdio.h>
 #include "pasta_fp.h"
+#include "pasta_fq.h"
 #include "crypto.h"
 #include "libbase58.h"
+#include "base10.h"
 
 void read_public_key_compressed(Compressed* out, char* pubkeyBase58) {
   size_t pubkeyBytesLen = 40;
@@ -88,4 +90,17 @@ int main(int argc, char* argv[]) {
 
   Signature sig;
   sign(&sig, &kp, &txn);
+
+  char buf[DIGITS] = { 0 };
+  uint64_t tmp[4];
+
+  fiat_pasta_fp_from_montgomery(tmp, sig.rx);
+  bigint_to_string(buf, tmp);
+  printf("field = %s\n", buf);
+
+  for (size_t i = 0; i < DIGITS; ++i) { buf[i] = 0; }
+
+  fiat_pasta_fq_from_montgomery(tmp, sig.s);
+  bigint_to_string(buf, tmp);
+  printf("scalar = %s\n", buf);
 }

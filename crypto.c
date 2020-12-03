@@ -561,7 +561,6 @@ void roinput_to_bytes(uint8_t *out, const ROInput *input) {
   }
 
   for (size_t i = 0; i < input->bits_len; ++i) {
-    printf("%u ", input->bits[i]);
     packed_bit_array_set(out, bit_idx, input->bits[i]);
     bit_idx += 1;
   }
@@ -740,36 +739,22 @@ void message_derive(Scalar out, const Keypair *kp, const ROInput *msg)
 
     for (size_t i = 0; i < msg->fields_len * LIMBS_PER_FIELD; ++i) {
       input.fields[i] = msg->fields[i];
-      printf("setting 0x%lx\n", input.fields[i]);
     }
-//    memcpy(input.fields, msg->fields, sizeof(uint64_t) * LIMBS_PER_FIELD * msg->fields_len);
     memcpy(input.bits, msg->bits, sizeof(bool) * msg->bits_len);
-
-    roinput_print_fields(msg);
-    printf("here\n\n");
-    roinput_print_fields(&input);
 
     input.fields_len = msg->fields_len;
     input.bits_len = msg->bits_len;
     input.fields_capacity = 5;
     input.bits_capacity = bits_capacity;
 
-    printf("derive\n\n");
-
     roinput_add_field(&input, kp->pub.x);
     roinput_add_field(&input, kp->pub.y);
-    roinput_print_fields(&input);
     roinput_add_scalar(&input, kp->priv);
 
     size_t input_size_in_bits = input.bits_len + FIELD_SIZE_IN_BITS * input.fields_len;
     size_t input_size_in_bytes = (input_size_in_bits + 7) / 8;
     uint8_t* input_bytes = malloc(sizeof(uint8_t) * input_size_in_bytes);
-    printf("input bytes: ");
     roinput_to_bytes(input_bytes, &input);
-    printf("\nahem");
-    for (size_t i = 0; i < input_size_in_bytes; ++i) {
-      printf("%u, ", input_bytes[i]);
-    }
 
     uint8_t hash_out[32];
     blake2b(hash_out, 32, input_bytes, input_size_in_bytes, NULL, 0);
@@ -813,18 +798,15 @@ void message_hash(Scalar out, const Affine *pub, const Field rx, const ROInput *
     // over-estimate of field elements needed
     uint64_t* packed_elements = malloc(sizeof(uint64_t) * LIMBS_PER_FIELD * 20);
     size_t packed_elements_len = roinput_to_fields(packed_elements, &input);
-    printf("actual packed len %lu\n", packed_elements_len);
 
     poseidon_update(pos, packed_elements, packed_elements_len);
     poseidon_digest(out, pos);
 
     free(packed_elements);
-    // free(input.bits);
 }
 
 void sign(Signature *sig, const Keypair *kp, const Transaction *transaction)
 {
-    uint8_t* debug = malloc(sizeof(uint8_t) * 500);
     // Convert transaction to ROInput
     uint64_t input_fields[12];
     ROInput input;
@@ -840,17 +822,11 @@ void sign(Signature *sig, const Keypair *kp, const Transaction *transaction)
     roinput_add_field(&input, transaction->source_pk.x);
     roinput_add_field(&input, transaction->receiver_pk.x);
 
-    printf("here0\n"); roinput_to_bytes(debug, &input);
     roinput_add_uint64(&input, transaction->fee);
-    printf("here1\n"); roinput_to_bytes(debug, &input);
     roinput_add_uint64(&input, transaction->fee_token);
-    printf("here2\n"); roinput_to_bytes(debug, &input);
     roinput_add_bit(&input, transaction->fee_payer_pk.is_odd);
-    printf("here3\n"); roinput_to_bytes(debug, &input);
     roinput_add_uint32(&input, transaction->nonce);
-    printf("here4\n"); roinput_to_bytes(debug, &input);
     roinput_add_uint32(&input, transaction->valid_until);
-    printf("here5\n"); roinput_to_bytes(debug, &input);
     roinput_add_bytes(&input, transaction->memo, MEMO_BYTES);
     for (size_t i = 0; i < 3; ++i) {
       roinput_add_bit(&input, transaction->tag[i]);
@@ -864,8 +840,6 @@ void sign(Signature *sig, const Keypair *kp, const Transaction *transaction)
     // k = message_derive(msg.field_elements + kp.pub + msg.bitstring + kp.priv)
     Scalar k;
     message_derive(k, kp, &input);
-    printf("k = ");
-    fiat_pasta_fq_print(k);
 
     uint64_t k_nonzero;
     fiat_pasta_fq_nonzero(&k_nonzero, k);
@@ -894,11 +868,5 @@ void sign(Signature *sig, const Keypair *kp, const Transaction *transaction)
     scalar_mul(e_priv, e, kp->priv);
     scalar_add(sig->s, k, e_priv);
 
-    printf("rx");
-    fiat_pasta_fp_print(sig->rx);
-    printf("s");
-    fiat_pasta_fq_print(sig->s);
-
-    printf("free\n");
     free(input.bits);
 }
