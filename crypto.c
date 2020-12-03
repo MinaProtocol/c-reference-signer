@@ -25,6 +25,8 @@
 #define THROW exit
 #define INVALID_PARAMETER 1
 
+#include <assert.h>
+
 #include "crypto.h"
 #include "utils.h"
 #include "poseidon.h"
@@ -664,11 +666,12 @@ void message_derive(Scalar out, const Keypair *kp, const ROInput *msg)
 {
     ROInput input;
     uint64_t input_fields[20];
-
-    size_t bits_capacity = msg->bits_len + 255;
+    bool input_bits[1024];
+    size_t bits_capacity = 1024;
+    uint8_t input_bytes[512] = { 0 };
 
     input.fields = input_fields;
-    input.bits = malloc(sizeof(bool) * bits_capacity);
+    input.bits = input_bits;
 
     for (size_t i = 0; i < msg->fields_len * LIMBS_PER_FIELD; ++i) {
       input.fields[i] = msg->fields[i];
@@ -686,7 +689,7 @@ void message_derive(Scalar out, const Keypair *kp, const ROInput *msg)
 
     size_t input_size_in_bits = input.bits_len + FIELD_SIZE_IN_BITS * input.fields_len;
     size_t input_size_in_bytes = (input_size_in_bits + 7) / 8;
-    uint8_t* input_bytes = malloc(sizeof(uint8_t) * input_size_in_bytes);
+    assert(input_size_in_bytes <= 512);
     roinput_to_bytes(input_bytes, &input);
 
     uint8_t hash_out[32];
@@ -696,19 +699,22 @@ void message_derive(Scalar out, const Keypair *kp, const ROInput *msg)
     packed_bit_array_set(hash_out, 255, 0);
     packed_bit_array_set(hash_out, 254, 0);
     fiat_pasta_fq_to_montgomery(out, (uint64_t*) hash_out);
-
-    free(input_bytes);
 }
 
 void message_hash(Scalar out, const Affine *pub, const Field rx, const ROInput *msg)
 {
-    uint64_t input_fields[24];
     ROInput input;
-    input.fields_capacity = msg->fields_len + 3;
-    input.bits_capacity = msg->bits_capacity;
+
+    uint64_t input_fields[24];
+    bool input_bits[1024];
+
+    input.fields_capacity = 24;
+    input.bits_capacity = 1024;
+    assert(msg->fields_len <= 24);
+    assert(msg->bits_len <= 1024);
 
     input.fields = input_fields;
-    input.bits = (bool *) malloc(sizeof(bool) * input.bits_capacity);
+    input.bits = input_bits;
     input.fields_len = msg->fields_len;
     input.bits_len = msg->bits_len;
 
@@ -727,25 +733,25 @@ void message_hash(Scalar out, const Affine *pub, const Field rx, const ROInput *
     };
 
     // over-estimate of field elements needed
-    uint64_t* packed_elements = malloc(sizeof(uint64_t) * LIMBS_PER_FIELD * 20);
+    uint64_t packed_elements[20 * LIMBS_PER_FIELD];
     size_t packed_elements_len = roinput_to_fields(packed_elements, &input);
 
     poseidon_update(pos, packed_elements, packed_elements_len);
     poseidon_digest(out, pos);
-
-    free(packed_elements);
 }
+
+#define FULL_BITS_LEN (FEE_BITS + TOKEN_ID_BITS + 1 + NONCE_BITS + GLOBAL_SLOT_BITS + MEMO_BITS + TAG_BITS + 1 + 1 + TOKEN_ID_BITS + AMOUNT_BITS + 1)
 
 void sign(Signature *sig, const Keypair *kp, const Transaction *transaction)
 {
     // Convert transaction to ROInput
     uint64_t input_fields[12];
+    bool input_bits[FULL_BITS_LEN];
     ROInput input;
     input.fields_capacity = 3;
-
-    input.bits_capacity = FEE_BITS + TOKEN_ID_BITS + 1 + NONCE_BITS + GLOBAL_SLOT_BITS + MEMO_BITS + TAG_BITS + 1 + 1 + TOKEN_ID_BITS + AMOUNT_BITS + 1;
+    input.bits_capacity = FULL_BITS_LEN;
     input.fields = input_fields;
-    input.bits = malloc(sizeof(bool) * input.bits_capacity);
+    input.bits = input_bits;
     input.fields_len = 0;
     input.bits_len = 0;
 
@@ -797,6 +803,4 @@ void sign(Signature *sig, const Keypair *kp, const Transaction *transaction)
     Scalar e_priv;
     scalar_mul(e_priv, e, kp->priv);
     scalar_add(sig->s, k, e_priv);
-
-    free(input.bits);
 }
