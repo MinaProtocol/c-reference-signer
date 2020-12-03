@@ -25,11 +25,8 @@
 
 #define COIN 1000000000ULL
 
-typedef uint8_t FieldBytes[FIELD_BYTES];
-typedef uint8_t ScalarBytes[SCALAR_BYTES];
-
-typedef uint64_t Field[FIELD_BYTES];
-typedef uint64_t Scalar[SCALAR_BYTES];
+typedef uint64_t Field[LIMBS_PER_FIELD];
+typedef uint64_t Scalar[LIMBS_PER_FIELD];
 
 typedef uint64_t Currency;
 #define FEE_BITS 64

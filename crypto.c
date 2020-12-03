@@ -634,34 +634,6 @@ void generate_pubkey(Affine *pub_key, const Scalar priv_key)
     affine_scalar_mul(pub_key, priv_key, &AFFINE_ONE);
 }
 
-uint8_t write_shifted(blake2b_state* ctx, uint8_t overlap_byte, const uint8_t *buf, size_t len, size_t shift)
-{
-    for (size_t i = 0; i < len; i++) {
-        uint8_t mask = 0xff >> (8 - shift);
-        overlap_byte |= (buf[i] & mask) << (8 - shift); // take lo shift bits to hi
-
-        blake2b_update(ctx, &overlap_byte, 1);
-
-        overlap_byte = (buf[i] & ~mask) >> shift; // take top shift bits to lo
-    }
-
-    return overlap_byte;
-}
-
-uint8_t write_rev_shifted(blake2b_state* ctx, uint8_t overlap_byte, const uint8_t *buf, size_t len, size_t shift)
-{
-    for (size_t i = len; i > 0; i--) {
-        uint8_t mask = 0xff >> (8 - shift);
-        overlap_byte |= (buf[i - 1] & mask) << (8 - shift); // take lo shift bits to hi
-
-        blake2b_update(ctx, &overlap_byte, 1);
-
-        overlap_byte = (buf[i - 1] & ~mask) >> shift; // take top shift bits to lo
-    }
-
-    return overlap_byte;
-}
-
 void message_derive(Scalar out, const Keypair *kp, const ROInput *msg)
 {
     ROInput input;
