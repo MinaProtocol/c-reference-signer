@@ -1,6 +1,6 @@
 # Mina reference signer
 
-See [main.c](main.c) for an example usage. Running main.c
+See [main.c](main.c) for an example usage of how to sign a payment and a stake delegation.
 
 ## Building
 
