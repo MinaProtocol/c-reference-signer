@@ -4,6 +4,7 @@
 #include "crypto.h"
 #include "libbase58.h"
 #include "base10.h"
+#include <sys/resource.h>
 
 void read_public_key_compressed(Compressed* out, char* pubkeyBase58) {
   size_t pubkeyBytesLen = 40;
@@ -41,6 +42,12 @@ void prepare_memo(uint8_t* out, char* s) {
 #define DEFAULT_TOKEN_ID 1
 
 int main(int argc, char* argv[]) {
+  struct rlimit lim = {1, 1};
+  if (setrlimit(RLIMIT_STACK, &lim) == -1) {
+      printf("rlimit failed\n");
+      return 1;
+  }
+
   Scalar priv_key = { 0xca14d6eed923f6e3, 0x61185a1b5e29e6b2, 0xe26d38de9c30753b, 0x3fdf0efb0a5714 };
 
   /*
