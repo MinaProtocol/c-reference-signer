@@ -43,6 +43,7 @@ typedef uint8_t Memo[MEMO_BYTES];
 typedef bool Tag[3];
 #define TAG_BITS 3
 
+typedef uint8_t* PackedBits;
 
 typedef struct group {
     Field X;
@@ -89,7 +90,7 @@ typedef struct keypair {
 
 typedef struct roinput {
   uint64_t* fields;
-  bool* bits;
+  PackedBits bits;
   size_t fields_len;
   size_t fields_capacity;
   size_t bits_len;

@@ -454,7 +454,8 @@ void roinput_add_bit(ROInput *input, bool b) {
   }
 
   size_t offset = input->bits_len;
-  input->bits[offset] = b;
+
+  packed_bit_array_set(input->bits, offset, b);
   input->bits_len += 1;
 }
 
@@ -475,7 +476,7 @@ void roinput_add_scalar(ROInput *input, const Scalar a) {
     size_t limb_idx = i / 64;
     size_t in_limb_idx = (i % 64);
     bool b = (scalar_bigint[limb_idx] >> in_limb_idx) & 1;
-    input->bits[offset + i] = b;
+    packed_bit_array_set(input->bits, offset + i, b);
   }
 
   input->bits_len += len;
@@ -494,7 +495,7 @@ void roinput_add_bytes(ROInput *input, const uint8_t *bytes, size_t len) {
     const uint8_t b = bytes[i];
 
     for (size_t j = 0; j < 8; ++j) {
-      input->bits[k] = (b >> j) & 1;
+      packed_bit_array_set(input->bits, k, (b >> j) & 1);
       ++k;
     }
   }
@@ -546,7 +547,7 @@ void roinput_to_bytes(uint8_t *out, const ROInput *input) {
   }
 
   for (size_t i = 0; i < input->bits_len; ++i) {
-    packed_bit_array_set(out, bit_idx, input->bits[i]);
+    packed_bit_array_set(out, bit_idx, packed_bit_array_get(input->bits, i));
     bit_idx += 1;
   }
 }
@@ -576,7 +577,7 @@ size_t roinput_to_fields(uint64_t *out, const ROInput *input) {
       packed_bit_array_set(
           (uint8_t*) chunk_non_montgomery,
           i, 
-          input->bits[bits_consumed + i] );
+          packed_bit_array_get(input->bits, bits_consumed + i));
     }
     fiat_pasta_fp_to_montgomery(next_chunk, chunk_non_montgomery);
 
@@ -637,10 +638,10 @@ void generate_pubkey(Affine *pub_key, const Scalar priv_key)
 void message_derive(Scalar out, const Keypair *kp, const ROInput *msg)
 {
     ROInput input;
-    uint64_t input_fields[20];
-    bool input_bits[1024];
-    size_t bits_capacity = 1024;
-    uint8_t input_bytes[512] = { 0 };
+    uint64_t input_fields[4 * 5];
+    uint8_t input_bits[107];
+    size_t bits_capacity = 8 * 107;
+    uint8_t input_bytes[267] = { 0 };
 
     input.fields = input_fields;
     input.bits = input_bits;
@@ -648,7 +649,7 @@ void message_derive(Scalar out, const Keypair *kp, const ROInput *msg)
     for (size_t i = 0; i < msg->fields_len * LIMBS_PER_FIELD; ++i) {
       input.fields[i] = msg->fields[i];
     }
-    memcpy(input.bits, msg->bits, sizeof(bool) * msg->bits_len);
+    memcpy(input.bits, msg->bits, sizeof(uint8_t) * ((msg->bits_len + 7) / 8));
 
     input.fields_len = msg->fields_len;
     input.bits_len = msg->bits_len;
@@ -661,7 +662,7 @@ void message_derive(Scalar out, const Keypair *kp, const ROInput *msg)
 
     size_t input_size_in_bits = input.bits_len + FIELD_SIZE_IN_BITS * input.fields_len;
     size_t input_size_in_bytes = (input_size_in_bits + 7) / 8;
-    assert(input_size_in_bytes <= 512);
+    assert(input_size_in_bytes <= 267);
     roinput_to_bytes(input_bytes, &input);
 
     uint8_t hash_out[32];
@@ -677,13 +678,13 @@ void message_hash(Scalar out, const Affine *pub, const Field rx, const ROInput *
 {
     ROInput input;
 
-    uint64_t input_fields[24];
-    bool input_bits[1024];
+    uint64_t input_fields[4 * 6];
+    uint8_t input_bits[75];
 
-    input.fields_capacity = 24;
-    input.bits_capacity = 1024;
-    assert(msg->fields_len <= 24);
-    assert(msg->bits_len <= 1024);
+    input.fields_capacity = 6;
+    input.bits_capacity = 8 * 75;
+    assert(msg->fields_len <= 6);
+    assert(msg->bits_len <= input.bits_capacity);
 
     input.fields = input_fields;
     input.bits = input_bits;
@@ -691,7 +692,7 @@ void message_hash(Scalar out, const Affine *pub, const Field rx, const ROInput *
     input.bits_len = msg->bits_len;
 
     memcpy(input.fields, msg->fields, sizeof(uint64_t) * LIMBS_PER_FIELD * msg->fields_len);
-    memcpy(input.bits, msg->bits, sizeof(bool) * msg->bits_len);
+    memcpy(input.bits, msg->bits, sizeof(uint8_t) * ((msg->bits_len + 7) / 8));
 
     roinput_add_field(&input, pub->x);
     roinput_add_field(&input, pub->y);
@@ -713,15 +714,16 @@ void message_hash(Scalar out, const Affine *pub, const Field rx, const ROInput *
 }
 
 #define FULL_BITS_LEN (FEE_BITS + TOKEN_ID_BITS + 1 + NONCE_BITS + GLOBAL_SLOT_BITS + MEMO_BITS + TAG_BITS + 1 + 1 + TOKEN_ID_BITS + AMOUNT_BITS + 1)
+#define FULL_BITS_BYTES ((FULL_BITS_LEN + 7) / 8)
 
 void sign(Signature *sig, const Keypair *kp, const Transaction *transaction)
 {
     // Convert transaction to ROInput
-    uint64_t input_fields[12];
-    bool input_bits[FULL_BITS_LEN];
+    uint64_t input_fields[4 * 3];
+    uint8_t input_bits[FULL_BITS_BYTES];
     ROInput input;
     input.fields_capacity = 3;
-    input.bits_capacity = FULL_BITS_LEN;
+    input.bits_capacity = 8 * FULL_BITS_BYTES;
     input.fields = input_fields;
     input.bits = input_bits;
     input.fields_len = 0;
