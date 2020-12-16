@@ -18,8 +18,6 @@
 #include <stdint.h>
 typedef unsigned char fiat_pasta_fp_uint1;
 typedef signed char fiat_pasta_fp_int1;
-typedef signed __int128 fiat_pasta_fp_int128;
-typedef unsigned __int128 fiat_pasta_fp_uint128;
 
 #if (-1 & 3) != 3
 #error "This code only works on a two's complement system"
@@ -41,14 +39,9 @@ typedef unsigned __int128 fiat_pasta_fp_uint128;
  *   out2: [0x0 ~> 0x1]
  */
 void fiat_pasta_fp_addcarryx_u64(uint64_t* out1, fiat_pasta_fp_uint1* out2, fiat_pasta_fp_uint1 arg1, uint64_t arg2, uint64_t arg3) {
-  fiat_pasta_fp_uint128 x1;
-  uint64_t x2;
-  fiat_pasta_fp_uint1 x3;
-  x1 = ((arg1 + (fiat_pasta_fp_uint128)arg2) + arg3);
-  x2 = (uint64_t)(x1 & UINT64_C(0xffffffffffffffff));
-  x3 = (fiat_pasta_fp_uint1)(x1 >> 64);
-  *out1 = x2;
-  *out2 = x3;
+  uint64_t tmp = arg3 + arg1;
+  *out1 = arg2 + tmp;
+  *out2 = (arg2 > *out1) | (arg3 > tmp);
 }
 
 /*
@@ -66,14 +59,9 @@ void fiat_pasta_fp_addcarryx_u64(uint64_t* out1, fiat_pasta_fp_uint1* out2, fiat
  *   out2: [0x0 ~> 0x1]
  */
 void fiat_pasta_fp_subborrowx_u64(uint64_t* out1, fiat_pasta_fp_uint1* out2, fiat_pasta_fp_uint1 arg1, uint64_t arg2, uint64_t arg3) {
-  fiat_pasta_fp_int128 x1;
-  fiat_pasta_fp_int1 x2;
-  uint64_t x3;
-  x1 = ((arg2 - (fiat_pasta_fp_int128)arg1) - arg3);
-  x2 = (fiat_pasta_fp_int1)(x1 >> 64);
-  x3 = (uint64_t)(x1 & UINT64_C(0xffffffffffffffff));
-  *out1 = x3;
-  *out2 = (fiat_pasta_fp_uint1)(0x0 - x2);
+  uint64_t tmp = arg3 + arg1;
+  *out1 = arg2 - tmp;
+  *out2 = (arg2 < *out1) | (arg3 > tmp);
 }
 
 /*
@@ -89,15 +77,28 @@ void fiat_pasta_fp_subborrowx_u64(uint64_t* out1, fiat_pasta_fp_uint1* out2, fia
  *   out1: [0x0 ~> 0xffffffffffffffff]
  *   out2: [0x0 ~> 0xffffffffffffffff]
  */
-void fiat_pasta_fp_mulx_u64(uint64_t* out1, uint64_t* out2, uint64_t arg1, uint64_t arg2) {
-  fiat_pasta_fp_uint128 x1;
-  uint64_t x2;
-  uint64_t x3;
-  x1 = ((fiat_pasta_fp_uint128)arg1 * arg2);
-  x2 = (uint64_t)(x1 & UINT64_C(0xffffffffffffffff));
-  x3 = (uint64_t)(x1 >> 64);
-  *out1 = x2;
-  *out2 = x3;
+void fiat_pasta_fp_mulx_u64(uint64_t* out1, uint64_t* out2, uint64_t a, uint64_t b) {
+  uint64_t    a_lo = (uint32_t)a;
+  uint64_t    a_hi = a >> 32;
+  uint64_t    b_lo = (uint32_t)b;
+  uint64_t    b_hi = b >> 32;
+
+  uint64_t    a_x_b_hi =  a_hi * b_hi;
+  uint64_t    a_x_b_mid = a_hi * b_lo;
+  uint64_t    b_x_a_mid = b_hi * a_lo;
+  uint64_t    a_x_b_lo =  a_lo * b_lo;
+
+  uint64_t    carry_bit = ((uint64_t)(uint32_t)a_x_b_mid +
+                          (uint64_t)(uint32_t)b_x_a_mid +
+                          (a_x_b_lo >> 32) ) >> 32;
+
+  uint64_t    multhi = a_x_b_hi +
+                      (a_x_b_mid >> 32) + (b_x_a_mid >> 32) +
+                      carry_bit;
+
+  *out2 = multhi;
+  // TODO: This multiplication could be avoided.
+  *out1 = a * b;
 }
 
 /*
