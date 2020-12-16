@@ -395,7 +395,10 @@ void group_scalar_mul(Group *r, const Scalar k, const Group *p)
 
     // Not constant time
     for (size_t i = 0; i < FIELD_SIZE_IN_BITS; ++i) {
-        bool di = packed_bit_array_get((uint8_t*) k_bits, FIELD_SIZE_IN_BITS - 1 - i);
+        size_t j = FIELD_SIZE_IN_BITS - 1 - i;
+        size_t limb_idx = j / 64;
+        size_t in_limb_idx = (j % 64);
+        bool di = (k_bits[limb_idx] >> in_limb_idx) & 1;
 
         group_dbl(&tmp, r);
 
@@ -534,14 +537,15 @@ void roinput_to_bytes(uint8_t *out, const ROInput *input) {
   for (size_t i = 0; i < input->fields_len; ++i) {
     fiat_pasta_fp_from_montgomery(tmp, input->fields + (i * LIMBS_PER_FIELD));
 
-    // TODO: We assume little endian here.
-    uint8_t* field_bits = (uint8_t*) tmp;
-
     for (size_t j = 0; j < FIELD_SIZE_IN_BITS; ++j) {
+      size_t limb_idx = j / 64;
+      size_t in_limb_idx = (j % 64);
+      bool b = (tmp[limb_idx] >> in_limb_idx) & 1;
+
       packed_bit_array_set(
           out
           , bit_idx
-          , packed_bit_array_get(field_bits, j));
+          , b);
       bit_idx += 1;
     }
   }
