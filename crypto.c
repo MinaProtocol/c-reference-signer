@@ -26,6 +26,7 @@
 #define INVALID_PARAMETER 1
 
 #include <assert.h>
+#include <inttypes.h>
 
 #include "crypto.h"
 #include "utils.h"
@@ -429,7 +430,7 @@ bool is_odd(const Field y)
 
 void roinput_print_fields(const ROInput *input) {
   for (size_t i = 0; i < LIMBS_PER_FIELD * input->fields_len; ++i) {
-    printf("fs[%lu] = 0x%lx\n", i, input->fields[i]);
+    printf("fs[%zu] = 0x%" PRIx64 "\n", i, input->fields[i]);
   }
 }
 

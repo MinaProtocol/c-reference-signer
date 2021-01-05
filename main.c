@@ -5,6 +5,7 @@
 #include "libbase58.h"
 #include "base10.h"
 #include <sys/resource.h>
+#include <inttypes.h>
 
 void read_public_key_compressed(Compressed* out, char* pubkeyBase58) {
   size_t pubkeyBytesLen = 40;
@@ -126,8 +127,8 @@ int main(int argc, char* argv[]) {
   printf("  payload:\n");
   printf("   { to: '%s',\n", receiver_str);
   printf("     from: '%s',\n", source_str);
-  printf("     fee: '%lu',\n", txn.fee);
-  printf("     amount: '%lu',\n", txn.amount);
+  printf("     fee: '%" PRIu64 "',\n", txn.fee);
+  printf("     amount: '%" PRIu64 "',\n", txn.amount);
   printf("     nonce: '%u',\n", txn.nonce);
   printf("     memo: '%s',\n", txn.memo); // TODO: This should actually be b58 encoded
   printf("     validUntil: '%u' } }\n", txn.valid_until);
