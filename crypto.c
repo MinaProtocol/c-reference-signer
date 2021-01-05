@@ -434,6 +434,12 @@ void roinput_print_fields(const ROInput *input) {
   }
 }
 
+void roinput_print_bits(const ROInput *input) {
+  for (size_t i = 0; i < input->bits_len; ++i) {
+    printf("bs[%zu] = %u\n", i, packed_bit_array_get(input->bits, i));
+  }
+}
+
 // input for poseidon
 void roinput_add_field(ROInput *input, const Field a) {
   int remaining = (int)input->fields_capacity - (int)input->fields_len;
@@ -583,7 +589,7 @@ size_t roinput_to_fields(uint64_t *out, const ROInput *input) {
       size_t in_limb_idx = (i % 64);
       size_t b = packed_bit_array_get(input->bits, bits_consumed + i);
 
-      chunk_non_montgomery[limb_idx] =  chunk_non_montgomery[limb_idx] | (b << in_limb_idx);
+      chunk_non_montgomery[limb_idx] =  chunk_non_montgomery[limb_idx] | (((uint64_t) b) << in_limb_idx);
     }
     fiat_pasta_fp_to_montgomery(next_chunk, chunk_non_montgomery);
 

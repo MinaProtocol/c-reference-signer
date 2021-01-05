@@ -44,7 +44,12 @@ void decimalint_from_bigint(DecimalInt out, const uint64_t x[4]) {
   for (size_t i = 0; i < NUM_BITS; ++i) {
     decimalint_add(tmp, out, out);
 
-    if (packed_bit_array_get((uint8_t *) x, NUM_BITS - 1 - i)) {
+    const size_t j = NUM_BITS - 1 - i;
+    size_t limb_idx = j / 64;
+    size_t in_limb_idx = (j % 64);
+    bool bj = (x[limb_idx] >> in_limb_idx) & 1;
+
+    if (bj) {
       decimalint_add(out, tmp, one);
     } else {
       decimalint_copy(out, tmp);
