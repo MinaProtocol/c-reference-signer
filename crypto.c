@@ -35,6 +35,8 @@
 #include "pasta_fq.h"
 #include "blake2.h"
 
+#define debugf printf
+
 // a = 0, b = 5
 static const Field GROUP_COEFF_B = {
     0xa1a55e68ffffffed, 0x74c2a54b4f4982f3, 0xfffffffffffffffd, 0x3fffffffffffffff
@@ -672,18 +674,42 @@ void message_derive(Scalar out, const Keypair *kp, const ROInput *msg)
     roinput_add_field(&input, kp->pub.y);
     roinput_add_scalar(&input, kp->priv);
 
+    debugf("derive input fields ");
+    roinput_print_fields(&input);
+    debugf("derive input bits ");
+    roinput_print_bits(&input);
+
     size_t input_size_in_bits = input.bits_len + FIELD_SIZE_IN_BITS * input.fields_len;
     size_t input_size_in_bytes = (input_size_in_bits + 7) / 8;
     assert(input_size_in_bytes <= 267);
     roinput_to_bytes(input_bytes, &input);
 
+    for (size_t i = 0; i < input_size_in_bytes; ++i) {
+      debugf("derive input bytes [%zu] = %d\n", i, (uint8_t) input_bytes[i]);
+    }
+
     uint8_t hash_out[32];
     blake2b(hash_out, 32, input_bytes, input_size_in_bytes, NULL, 0);
+
+    for (size_t i = 0; i < 32; ++i) {
+      debugf("derive hash out [%zu] = %d\n", i, (uint8_t) hash_out[i]);
+    }
 
     // take 254 bits / drop the top 2 bits
     packed_bit_array_set(hash_out, 255, 0);
     packed_bit_array_set(hash_out, 254, 0);
-    fiat_pasta_fq_to_montgomery(out, (uint64_t*) hash_out);
+
+    uint64_t tmp[4] = { 0, 0, 0, 0 };
+    for (size_t i = 0; i < 4; ++i) {
+      // 8 bytes
+      for (size_t j = 0; j < 8; ++j) {
+        tmp[i] |= ((uint64_t) hash_out[8*i + j]) << (8 * j);
+      }
+    }
+    fiat_pasta_fq_to_montgomery(out, tmp);
+
+    debugf("derive out");
+    fiat_pasta_fq_print(out);
 }
 
 void message_hash(Scalar out, const Affine *pub, const Field rx, const ROInput *msg)
@@ -710,6 +736,9 @@ void message_hash(Scalar out, const Affine *pub, const Field rx, const ROInput *
     roinput_add_field(&input, pub->y);
     roinput_add_field(&input, rx);
 
+    debugf("hash input fields ");
+    roinput_print_fields(&input);
+
     // Initial sponge state
     State pos = {
       { 0x67097c15f1a46d64, 0xc76fd61db3c20173, 0xbdf9f393b220a17, 0x10c0e352378ab1fd} ,
@@ -720,6 +749,11 @@ void message_hash(Scalar out, const Affine *pub, const Field rx, const ROInput *
     // over-estimate of field elements needed
     uint64_t packed_elements[20 * LIMBS_PER_FIELD];
     size_t packed_elements_len = roinput_to_fields(packed_elements, &input);
+
+    for (size_t i = 0; i < packed_elements_len; ++i) {
+      debugf("packed_elts[%zu] = ", i);
+      fiat_pasta_fp_print(packed_elements + 4 *i);
+    }
 
     poseidon_update(pos, packed_elements, packed_elements_len);
     poseidon_digest(out, pos);
@@ -759,6 +793,11 @@ void sign(Signature *sig, const Keypair *kp, const Transaction *transaction)
     roinput_add_uint64(&input, transaction->token_id);
     roinput_add_uint64(&input, transaction->amount);
     roinput_add_bit(&input, transaction->token_locked);
+
+    debugf("init input fields ");
+    roinput_print_fields(&input);
+    debugf("init input bits ");
+    roinput_print_bits(&input);
 
     Scalar k;
     message_derive(k, kp, &input);

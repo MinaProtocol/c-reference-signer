@@ -102,12 +102,22 @@ int main(int argc, char* argv[]) {
   txn.amount = 42;
   txn.token_locked = false;
 
+  printf("raw source_x ");
+  fiat_pasta_fp_print(txn.source_pk.x);
+  printf("raw receiver_x ");
+  fiat_pasta_fp_print(txn.receiver_pk.x);
+
   Keypair kp;
   scalar_copy(kp.priv, priv_key);
   generate_pubkey(&kp.pub, priv_key);
 
   Signature sig;
   sign(&sig, &kp, &txn);
+
+  printf("raw rx ");
+  fiat_pasta_fp_print(sig.rx);
+  printf("raw s ");
+  fiat_pasta_fq_print(sig.s);
 
   char field_str[DIGITS] = { 0 };
   char scalar_str[DIGITS] = { 0 };
