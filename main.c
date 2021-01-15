@@ -109,6 +109,10 @@ int main(int argc, char* argv[]) {
   Signature sig;
   sign(&sig, &kp, &txn);
 
+  if (!verify(&sig, &kp.pub, &txn)) {
+    exit(1);
+  }
+
   char field_str[DIGITS] = { 0 };
   char scalar_str[DIGITS] = { 0 };
   uint64_t tmp[4];
@@ -192,6 +196,10 @@ int main(int argc, char* argv[]) {
   del.amount = 0;
 
   sign(&sig, &kp, &del);
+
+  if (!verify(&sig, &kp.pub, &del)) {
+    exit(1);
+  }
 
   printf("\ndelegation signature only:\n");
 
