@@ -736,7 +736,39 @@ void message_hash(Scalar out, const Affine *pub, const Field rx, const ROInput *
 #define FULL_BITS_LEN (FEE_BITS + TOKEN_ID_BITS + 1 + NONCE_BITS + GLOBAL_SLOT_BITS + MEMO_BITS + TAG_BITS + 1 + 1 + TOKEN_ID_BITS + AMOUNT_BITS + 1)
 #define FULL_BITS_BYTES ((FULL_BITS_LEN + 7) / 8)
 
-bool verify(Signature *sig, const Affine *pub, const Transaction *transaction)
+void compress(Compressed *compressed, const Affine *pt) {
+  fiat_pasta_fp_copy(compressed->x, pt->x);
+
+  Field y_bigint;
+  fiat_pasta_fp_from_montgomery(y_bigint, pt->y);
+
+  compressed->is_odd = y_bigint[0] & 1;
+}
+
+void decompress(Affine *pt, const Compressed *compressed) {
+  fiat_pasta_fp_copy(pt->x, compressed->x);
+
+  Field x2;
+  fiat_pasta_fp_square(x2, pt->x);
+  Field x3;
+  fiat_pasta_fp_mul(x3, x2, pt->x); // x^3
+  Field y2;
+  fiat_pasta_fp_add(y2, x3, GROUP_COEFF_B);
+
+  Field y_pre;
+  fiat_pasta_fp_sqrt(y_pre, y2);
+  Field y_pre_bigint;
+  fiat_pasta_fp_from_montgomery(y_pre_bigint, y_pre);
+
+  const bool y_pre_odd = (y_pre_bigint[0] & 1);
+  if (y_pre_odd == compressed->is_odd) {
+    fiat_pasta_fp_copy(pt->y, y_pre);
+  } else {
+    fiat_pasta_fp_opp(pt->y, y_pre);
+  }
+}
+
+bool verify(Signature *sig, const Compressed *pub_compressed, const Transaction *transaction)
 {
     // Convert transaction to ROInput
     uint64_t input_fields[4 * 3];
@@ -768,8 +800,11 @@ bool verify(Signature *sig, const Affine *pub, const Transaction *transaction)
     roinput_add_uint64(&input, transaction->amount);
     roinput_add_bit(&input, transaction->token_locked);
 
+    Affine pub;
+    decompress(&pub, pub_compressed);
+
     Scalar e;
-    message_hash(e, pub, sig->rx, &input);
+    message_hash(e, &pub, sig->rx, &input);
 
     Group g;
     affine_to_projective(&g, &AFFINE_ONE);
@@ -778,7 +813,7 @@ bool verify(Signature *sig, const Affine *pub, const Transaction *transaction)
     group_scalar_mul(&sg, sig->s, &g);
 
     Group pub_proj;
-    affine_to_projective(&pub_proj, pub);
+    affine_to_projective(&pub_proj, &pub);
     Group epub;
     group_scalar_mul(&epub, e, &pub_proj);
 

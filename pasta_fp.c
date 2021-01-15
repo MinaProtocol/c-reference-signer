@@ -2168,8 +2168,6 @@ void fiat_pasta_fp_sqrt(uint64_t x[4], const uint64_t value[4]) {
     // t = (p - 1) / 2^32
     uint64_t w[4];
     fiat_pasta_fp_pow(w, value, T_MINUS_ONE_DIV_TWO, T_MINUS_ONE_DIV_TWO_LEN);
-    fiat_pasta_fp_print(value);
-    fiat_pasta_fp_print(w);
 
     fiat_pasta_fp_mul(x, value, w);
 

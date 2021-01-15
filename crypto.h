@@ -121,5 +121,6 @@ void generate_pubkey(Affine *pub_key, const Scalar priv_key);
 int get_address(char *address, size_t len, const Affine *pub_key);
 
 void sign(Signature *sig, const Keypair *kp, const Transaction *transaction);
-bool verify(Signature *sig, const Affine *pub, const Transaction *transaction);
+bool verify(Signature *sig, const Compressed *pub, const Transaction *transaction);
 
+void compress(Compressed *compressed, const Affine *pt);

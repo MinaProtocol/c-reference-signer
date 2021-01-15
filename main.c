@@ -106,10 +106,13 @@ int main(int argc, char* argv[]) {
   scalar_copy(kp.priv, priv_key);
   generate_pubkey(&kp.pub, priv_key);
 
+  Compressed pub_compressed;
+  compress(&pub_compressed, &kp.pub);
+
   Signature sig;
   sign(&sig, &kp, &txn);
 
-  if (!verify(&sig, &kp.pub, &txn)) {
+  if (!verify(&sig, &pub_compressed, &txn)) {
     exit(1);
   }
 
@@ -197,7 +200,7 @@ int main(int argc, char* argv[]) {
 
   sign(&sig, &kp, &del);
 
-  if (!verify(&sig, &kp.pub, &del)) {
+  if (!verify(&sig, &pub_compressed, &del)) {
     exit(1);
   }
 
