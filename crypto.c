@@ -27,6 +27,7 @@
 
 #include <assert.h>
 #include <inttypes.h>
+#include <openssl/sha.h>
 
 #include "crypto.h"
 #include "utils.h"
@@ -34,6 +35,7 @@
 #include "pasta_fp.h"
 #include "pasta_fq.h"
 #include "blake2.h"
+#include "libbase58.h"
 
 // a = 0, b = 5
 static const Field GROUP_COEFF_B = {
@@ -583,7 +585,7 @@ size_t roinput_to_fields(uint64_t *out, const ROInput *input) {
 
     size_t remaining = input->bits_len - bits_consumed;
     size_t chunk_size_in_bits = remaining >= MAX_CHUNK_SIZE ? MAX_CHUNK_SIZE : remaining;
-    
+
     for (size_t i = 0; i < chunk_size_in_bits; ++i) {
       size_t limb_idx = i / 64;
       size_t in_limb_idx = (i % 64);
@@ -645,6 +647,55 @@ void generate_keypair(Keypair *keypair, uint32_t account)
 void generate_pubkey(Affine *pub_key, const Scalar priv_key)
 {
     affine_scalar_mul(pub_key, priv_key, &AFFINE_ONE);
+}
+
+bool get_address(char *address, const size_t len, const Affine *pub_key)
+{
+    address[0] = '\0';
+
+    assert (len == MINA_ADDRESS_LEN);
+    if (len != MINA_ADDRESS_LEN) {
+        return false;
+    }
+
+    struct bytes {
+        uint8_t version;
+        uint8_t payload[35];
+        uint8_t checksum[4];
+    } raw;
+
+    raw.version    = 0xcb; // version for base58 check
+    raw.payload[0] = 0x01; // non_zero_curve_point version
+    raw.payload[1] = 0x01; // compressed_poly version
+
+    // x-coordinate
+    fiat_pasta_fp_from_montgomery((uint64_t *)&raw.payload[2], pub_key->x);
+
+    // y-coordinate parity
+    raw.payload[34] = is_odd(pub_key->y);
+
+    uint8_t hash1[SHA256_DIGEST_LENGTH];
+    SHA256_CTX sha256_ctx;
+    SHA256_Init(&sha256_ctx);
+    SHA256_Update(&sha256_ctx, &raw, 36);
+    SHA256_Final(hash1, &sha256_ctx);
+
+    uint8_t hash2[SHA256_DIGEST_LENGTH];
+    SHA256_Init(&sha256_ctx);
+    SHA256_Update(&sha256_ctx, hash1, 32);
+    SHA256_Final(hash2, &sha256_ctx);
+
+    memcpy(raw.checksum, hash2, 4);
+
+    // Encode as address
+    size_t out_len = len;
+    bool result = b58enc(address, &out_len, &raw, sizeof(raw));
+    address[MINA_ADDRESS_LEN - 1] = '\0';
+    assert(out_len == len);
+    if (out_len != len) {
+        return false;
+    }
+    return result;
 }
 
 void message_derive(Scalar out, const Keypair *kp, const ROInput *msg)
@@ -765,6 +816,39 @@ void decompress(Affine *pt, const Compressed *compressed) {
     fiat_pasta_fp_copy(pt->y, y_pre);
   } else {
     fiat_pasta_fp_opp(pt->y, y_pre);
+  }
+}
+
+void read_public_key_compressed(Compressed *out, const char *pubkeyBase58) {
+  size_t pubkeyBytesLen = 40;
+  unsigned char pubkeyBytes[40];
+  b58tobin(pubkeyBytes, &pubkeyBytesLen, pubkeyBase58, 0);
+
+  uint64_t x_coord_non_montgomery[4] = { 0, 0, 0, 0 };
+
+  size_t offset = 3;
+  for (size_t i = 0; i < 4; ++i) {
+    const size_t BYTES_PER_LIMB = 8;
+    // 8 bytes per limb
+    for (size_t j = 0; j < BYTES_PER_LIMB; ++j) {
+      size_t k = offset + BYTES_PER_LIMB * i + j;
+      x_coord_non_montgomery[i] |= ( ((uint64_t) pubkeyBytes[k]) << (8 * j));
+    }
+  }
+
+  fiat_pasta_fp_to_montgomery(out->x, x_coord_non_montgomery);
+  out->is_odd = (bool) pubkeyBytes[offset + 32];
+}
+
+void prepare_memo(uint8_t *out, const char *s) {
+  size_t len = strlen(s);
+  out[0] = 1;
+  out[1] = len; // length
+  for (size_t i = 0; i < len; ++i) {
+    out[2 + i] = s[i];
+  }
+  for (size_t i = 2 + len; i < MEMO_BYTES; ++i) {
+    out[i] = 0;
   }
 }
 

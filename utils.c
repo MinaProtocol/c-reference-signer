@@ -18,4 +18,3 @@ bool packed_bit_array_get(uint8_t *bits, size_t i) {
 
   return (bits[byte_idx] >> in_byte_idx) & 1;
 }
-

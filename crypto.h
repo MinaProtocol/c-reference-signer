@@ -118,9 +118,12 @@ void projective_to_affine(Affine *p, const Group *r);
 
 void generate_keypair(Keypair *keypair, uint32_t account);
 void generate_pubkey(Affine *pub_key, const Scalar priv_key);
-int get_address(char *address, size_t len, const Affine *pub_key);
+bool get_address(char *address, size_t len, const Affine *pub_key);
 
 void sign(Signature *sig, const Keypair *kp, const Transaction *transaction);
 bool verify(Signature *sig, const Compressed *pub, const Transaction *transaction);
 
 void compress(Compressed *compressed, const Affine *pt);
+
+void read_public_key_compressed(Compressed *out, const char *pubkeyBase58);
+void prepare_memo(uint8_t *out, const char *s);
