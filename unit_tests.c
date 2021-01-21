@@ -10,8 +10,8 @@
 #include "utils.h"
 
 #define DEFAULT_TOKEN_ID 1
-bool _verbose = false;
-bool _ledger_gen = false;
+static bool _verbose;
+static bool _ledger_gen;
 
 void privkey_to_hex(char *hex, const size_t len, const Scalar priv_key) {
   uint64_t priv_words[4];
@@ -85,6 +85,7 @@ bool privhex_to_address(char *address, const size_t len,
   Keypair kp;
   scalar_copy(kp.priv, priv_key);
   generate_pubkey(&kp.pub, priv_key);
+
   if (!get_address(address, len, &kp.pub)) {
     return false;
   }
@@ -129,6 +130,7 @@ bool sign_transaction(char *signature, const size_t len,
   Keypair kp;
   scalar_copy(kp.priv, priv_key);
   generate_pubkey(&kp.pub, priv_key);
+
   char source_str[MINA_ADDRESS_LEN];
   if (!get_address(source_str, sizeof(source_str), &kp.pub)) {
     return false;
@@ -258,6 +260,14 @@ int main(int argc, char* argv[]) {
   }
 
   // Address tests
+
+  if (_ledger_gen) {
+    printf("    # These tests were automatically generated from the Mina c-reference-signer\n");
+    printf("    #\n");
+    printf("    #     Details: https://github.com/MinaProtocol/c-reference-signer/README.markdown\n");
+    printf("    #     Command: ./unit_tests ledger_gen\n\n");
+  }
+
   assert(check_get_address("0",
                            "164244176fddb5d769b7de2027469d027ad428fadcc0c02396e6280142efb718",
                            "B62qnzbXmRNo9q32n4SNu2mpB8e7FYYLH8NmaX6oFCBYjjQ8SbD7uzV"));
@@ -283,6 +293,14 @@ int main(int argc, char* argv[]) {
                            "B62qoG5Yk4iVxpyczUrBNpwtx2xunhL48dydN53A2VjoRwF8NUTbVr4"));
 
   // Sign payment tx tests
+
+  if (_ledger_gen) {
+    printf("    # These tests were automatically generated from the Mina c-reference-signer\n");
+    printf("    #\n");
+    printf("    #     Details: https://github.com/MinaProtocol/c-reference-signer/README.markdown\n");
+    printf("    #     Command: ./unit_tests ledger_gen\n\n");
+  }
+
   assert(check_sign_tx("0",
                        "164244176fddb5d769b7de2027469d027ad428fadcc0c02396e6280142efb718",
                        "B62qicipYxyEHu7QjUqS7QvBipTs5CzgkYZZZkPoKVYBu6tnDUcE9Zt",

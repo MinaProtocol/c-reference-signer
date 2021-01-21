@@ -27,7 +27,6 @@
 
 #include <assert.h>
 #include <inttypes.h>
-#include <openssl/sha.h>
 
 #include "crypto.h"
 #include "utils.h"
@@ -36,6 +35,7 @@
 #include "pasta_fq.h"
 #include "blake2.h"
 #include "libbase58.h"
+#include "sha256.h"
 
 // a = 0, b = 5
 static const Field GROUP_COEFF_B = {
@@ -420,6 +420,7 @@ void affine_scalar_mul(Affine *r, const Scalar k, const Affine *p)
     Group pp, pr;
     affine_to_projective(&pp, p);
     group_scalar_mul(&pr, k, &pp);
+    assert(is_on_curve(&pr));
     projective_to_affine(r, &pr);
 }
 
@@ -674,16 +675,16 @@ bool get_address(char *address, const size_t len, const Affine *pub_key)
     // y-coordinate parity
     raw.payload[34] = is_odd(pub_key->y);
 
-    uint8_t hash1[SHA256_DIGEST_LENGTH];
+    uint8_t hash1[SHA256_BLOCK_SIZE];
     SHA256_CTX sha256_ctx;
-    SHA256_Init(&sha256_ctx);
-    SHA256_Update(&sha256_ctx, &raw, 36);
-    SHA256_Final(hash1, &sha256_ctx);
+    sha256_init(&sha256_ctx);
+    sha256_update(&sha256_ctx, (const BYTE *)&raw, 36);
+    sha256_final(&sha256_ctx, hash1);
 
-    uint8_t hash2[SHA256_DIGEST_LENGTH];
-    SHA256_Init(&sha256_ctx);
-    SHA256_Update(&sha256_ctx, hash1, 32);
-    SHA256_Final(hash2, &sha256_ctx);
+    uint8_t hash2[SHA256_BLOCK_SIZE];
+    sha256_init(&sha256_ctx);
+    sha256_update(&sha256_ctx, hash1, 32);
+    sha256_final(&sha256_ctx, hash2);
 
     memcpy(raw.checksum, hash2, 4);
 
