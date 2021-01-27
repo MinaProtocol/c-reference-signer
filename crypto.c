@@ -125,13 +125,10 @@ void scalar_copy(Scalar b, const Scalar a)
 
 void scalar_from_words(Scalar a, const uint64_t words[4])
 {
-    uint8_t *p = (uint8_t *)words;
-    uint8_t bytes[sizeof(Scalar)];
-    for (size_t i = sizeof(Scalar); i > 0; i--) {
-        bytes[sizeof(Scalar) - i] = p[i - 1];
-    }
-    bytes[31] &= 0x3f;
-    fiat_pasta_fq_to_montgomery(a, (uint64_t *)bytes);
+    uint64_t tmp[4];
+    memcpy(tmp, words, sizeof(tmp));
+    tmp[3] &= (((uint64_t)1 << 62) - 1); // drop top two bits
+    fiat_pasta_fq_to_montgomery(a, tmp);
 }
 
 void scalar_add(Scalar c, const Scalar a, const Scalar b)

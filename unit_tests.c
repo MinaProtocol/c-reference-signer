@@ -93,19 +93,15 @@ void sig_to_hex(char *hex, const size_t len, const Signature sig) {
     return;
   }
 
-  uint64_t priv_words[4];
-  uint8_t *p = (uint8_t *)priv_words;
-  size_t count = 0;
-  fiat_pasta_fp_from_montgomery(priv_words, sig.rx);
-  for (size_t i = sizeof(priv_words); i > 0; i--) {
-    sprintf(&hex[2*(sizeof(priv_words) - i)], "%02x", p[i - 1]);
-    count += 2;
+  uint64_t words[4];
+  fiat_pasta_fp_from_montgomery(words, sig.rx);
+  for (size_t i = 4; i > 0; i--) {
+    sprintf(&hex[16*(4 - i)], "%016lx", htole64(words[i - 1]));
   }
-  fiat_pasta_fq_from_montgomery(priv_words, sig.s);
-  for (size_t i = sizeof(priv_words); i > 0; i--) {
-    sprintf(&hex[count + 2*(sizeof(priv_words) - i)], "%02x", p[i - 1]);
+  fiat_pasta_fq_from_montgomery(words, sig.s);
+  for (size_t i = 4; i > 0; i--) {
+    sprintf(&hex[64 + 16*(4 - i)], "%016lx", htole64(words[i - 1]));
   }
-  hex[len] = '\0';
 }
 
 bool sign_transaction(char *signature, const size_t len,
