@@ -8,7 +8,8 @@ OBJS = base10.o \
 	pasta_fp.o \
 	pasta_fq.o \
 	poseidon.o \
-	utils.o
+	utils.o \
+	curve_checks.o
 
 reference_signer: $(OBJS) reference_signer.c
 	$(CC) -Wall -Werror $@.c -o $@ $(OBJS) -lm
@@ -18,7 +19,7 @@ unit_tests: $(OBJS) unit_tests.c
 	$(CC) -Wall -Werror $@.c -o $@ $(OBJS) -lm
 	@./$@
 
-%.o: %.c
+%.o: %.c %.h
 	$(CC) -Wall -Werror $< -c
 
 clean:

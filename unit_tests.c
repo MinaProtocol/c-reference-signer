@@ -8,6 +8,8 @@
 #include "crypto.h"
 #include "base10.h"
 #include "utils.h"
+#include "sha256.h"
+#include "curve_checks.h"
 
 #define DEFAULT_TOKEN_ID 1
 static bool _verbose;
@@ -28,6 +30,59 @@ void privkey_to_hex(char *hex, const size_t len, const Scalar priv_key) {
     sprintf(&hex[2*(sizeof(priv_words) - i)], "%02x", p[i - 1]);
   }
   hex[len] = '\0';
+}
+
+bool privkey_from_hex(Scalar priv_key, const char *priv_hex) {
+  size_t priv_hex_len = strnlen(priv_hex, 64);
+  if (priv_hex_len != 64) {
+    return false;
+  }
+  uint8_t priv_bytes[32];
+  for (size_t i = sizeof(priv_bytes); i > 0; i--) {
+    sscanf(&priv_hex[2*(i - 1)], "%02hhx", &priv_bytes[sizeof(priv_bytes) - i]);
+  }
+
+  if (priv_bytes[3] & 0xc000000000000000) {
+      return false;
+  }
+
+  fiat_pasta_fq_to_montgomery(priv_key, (uint64_t *)priv_bytes);
+
+  char priv_key_hex[65];
+  privkey_to_hex(priv_key_hex, sizeof(priv_key_hex), priv_key);
+
+  // sanity check
+  int result = memcmp(priv_key_hex, priv_hex, sizeof(priv_key_hex)) == 0;
+  assert(result);
+  return result;
+}
+
+bool privhex_to_address(char *address, const size_t len,
+                        const char *account_number, const char *priv_hex) {
+  Scalar priv_key;
+  if (!privkey_from_hex(priv_key, priv_hex)) {
+    return false;
+  }
+
+  Keypair kp;
+  scalar_copy(kp.priv, priv_key);
+  generate_pubkey(&kp.pub, priv_key);
+
+  if (!generate_address(address, len, &kp.pub)) {
+    return false;
+  }
+
+  if (_verbose) {
+    printf("%s => %s\n", priv_hex, address);
+  }
+  else if (_ledger_gen) {
+    printf("    # account %s\n", account_number);
+    printf("    # private key %s\n", priv_hex);
+    printf("    assert(mina.ledger_get_address(%s) == \"%s\")\n\n",
+           account_number, address);
+  }
+
+  return true;
 }
 
 void sig_to_hex(char *hex, const size_t len, const Signature sig) {
@@ -53,56 +108,6 @@ void sig_to_hex(char *hex, const size_t len, const Signature sig) {
   hex[len] = '\0';
 }
 
-bool hex_to_privkey(Scalar priv_key, const char *priv_hex) {
-  size_t priv_hex_len = strnlen(priv_hex, 64);
-  assert(priv_hex_len == 64);
-  if (priv_hex_len != 64) {
-    return false;
-  }
-  uint8_t priv_bytes[32];
-  for (size_t i = sizeof(priv_bytes); i > 0; i--) {
-    sscanf(&priv_hex[2*(i - 1)], "%02hhx", &priv_bytes[sizeof(priv_bytes) - i]);
-  }
-
-  fiat_pasta_fq_to_montgomery(priv_key, (uint64_t *)priv_bytes);
-
-  char priv_key_hex[65];
-  privkey_to_hex(priv_key_hex, sizeof(priv_key_hex), priv_key);
-
-  // sanity check
-  int result = memcmp(priv_key_hex, priv_hex, sizeof(priv_key_hex)) == 0;
-  assert(result);
-  return result;
-}
-
-bool privhex_to_address(char *address, const size_t len,
-                        const char *account_number, const char *priv_hex) {
-  Scalar priv_key;
-  if (!hex_to_privkey(priv_key, priv_hex)) {
-    return false;
-  }
-
-  Keypair kp;
-  scalar_copy(kp.priv, priv_key);
-  generate_pubkey(&kp.pub, priv_key);
-
-  if (!get_address(address, len, &kp.pub)) {
-    return false;
-  }
-
-  if (_verbose) {
-    printf("%s => %s\n", priv_hex, address);
-  }
-  else if (_ledger_gen) {
-    printf("    # account %s\n", account_number);
-    printf("    # private key %s\n", priv_hex);
-    printf("    assert(mina.ledger_get_address(%s) == \"%s\")\n\n",
-           account_number, address);
-  }
-
-  return true;
-}
-
 bool sign_transaction(char *signature, const size_t len,
                       const char *account_number,
                       const char *sender_priv_hex,
@@ -123,7 +128,7 @@ bool sign_transaction(char *signature, const size_t len,
   prepare_memo(txn.memo, memo);
 
   Scalar priv_key;
-  if (!hex_to_privkey(priv_key, sender_priv_hex)) {
+  if (!privkey_from_hex(priv_key, sender_priv_hex)) {
     return false;
   }
 
@@ -132,7 +137,7 @@ bool sign_transaction(char *signature, const size_t len,
   generate_pubkey(&kp.pub, priv_key);
 
   char source_str[MINA_ADDRESS_LEN];
-  if (!get_address(source_str, sizeof(source_str), &kp.pub)) {
+  if (!generate_address(source_str, sizeof(source_str), &kp.pub)) {
     return false;
   }
 
@@ -242,6 +247,279 @@ bool check_sign_tx(const char *account_number,
    return strcmp(signature, target) == 0;
 }
 
+void print_scalar_as_cstruct(const Scalar x)
+{
+  printf("        { ");
+  for (size_t i = 0; i < sizeof(Scalar)/sizeof(x[0]); i++) {
+    printf("0x%016lx, ", x[i]);
+  }
+  printf("},\n");
+}
+
+void print_affine_as_cstruct(const Affine *a)
+{
+  printf("        {\n");
+  printf("            { ");
+  for (size_t i = 0; i < sizeof(Field)/sizeof(a->x[0]); i++) {
+    printf("0x%016lx, ", a->x[i]);
+  }
+  printf(" },\n");
+  printf("            { ");
+  for (size_t i = 0; i < sizeof(Field)/sizeof(a->y[0]); i++) {
+    printf("0x%016lx, ", a->y[i]);
+  }
+  printf(" },");
+  printf("\n        },\n");
+}
+
+void print_scalar_as_ledger_cstruct(const Scalar x)
+{
+  uint64_t tmp[4];
+  uint8_t *p = (uint8_t *)tmp;
+
+  fiat_pasta_fq_from_montgomery(tmp, x);
+  printf("        {");
+  for (size_t i = sizeof(Scalar); i > 0; i--) {
+    if (i % 8 == 0) {
+      printf("\n            ");
+    }
+    printf("0x%02x, ", p[i - 1]);
+  }
+  printf("\n        },\n");
+}
+
+void print_affine_as_ledger_cstruct(const Affine *a)
+{
+  uint64_t tmp[4];
+  uint8_t *p = (uint8_t *)tmp;
+
+  fiat_pasta_fp_from_montgomery(tmp, a->x);
+  printf("        {\n");
+  printf("            {");
+  for (size_t i = sizeof(Field); i > 0; i--) {
+    if (i % 8 == 0) {
+      printf("\n                ");
+    }
+    printf("0x%02x, ", p[i - 1]);
+  }
+  printf("\n            },\n");
+  fiat_pasta_fp_from_montgomery(tmp, a->y);
+  printf("            {");
+  for (size_t i = sizeof(Field); i > 0; i--) {
+    if (i % 8 == 0) {
+      printf("\n                ");
+    }
+    printf("0x%02x, ", p[i - 1]);
+  }
+  printf("\n            },");
+  printf("\n        },\n");
+}
+
+void generate_curve_checks(bool ledger_gen) {
+  Scalar S[EPOCHS][3];
+  Affine A[EPOCHS][3];
+
+  printf("// curve_checks.h - elliptic curve unit tests\n");
+  printf("//\n");
+  printf("//    These constants were generated from the Mina c-reference-signer\n");
+
+  if (ledger_gen) {
+    printf("//\n");
+    printf("//    Details:  https://github.com/MinaProtocol/c-reference-signer/README.markdown\n");
+    printf("//    Generate: ./unit_tests ledger_gen\n");
+  }
+
+  printf("\n");
+  printf("#pragma once\n");
+  printf("\n");
+  printf("#include \"crypto.h\"\n");
+
+  if (!ledger_gen) {
+      printf("\n");
+      printf("#define THROW(x) fprintf(stderr, \"\\n!! FAILED %%s() at %%s:%%d !!\\n\\n\", \\\n");
+      printf("                         __FUNCTION__, __FILE__, __LINE__); \\\n");
+      printf("                 return false;\n");
+      // printf("#define THROW(x) fprintf(stderr, \"FAIL %%s:%%d %%s: check failed.\\n\", __FILE__, __LINE__, __FUNCTION__); return false;");
+  }
+
+  printf("\n");
+  printf("#define EPOCHS %u\n", EPOCHS);
+  printf("\n");
+
+  // Generate test scalars
+  printf("// Test scalars\n");
+  printf("static const Scalar S[%u][2] = {\n", EPOCHS);
+
+  Scalar s0; // Seed with zero scalar
+  explicit_bzero(s0, sizeof(s0));
+  for (size_t i = 0; i < EPOCHS; i++) {
+    // Generate two more scalars
+    Scalar s1, s2;
+    sha256_hash(s0, sizeof(s0), s1, sizeof(s1));
+    scalar_from_words(s1, s1);
+
+    sha256_hash(s1, sizeof(s1), s2, sizeof(s2));
+    scalar_from_words(s2, s2);
+
+    memcpy(S[i][0], &s0, sizeof(S[i][0]));
+    memcpy(S[i][1], &s1, sizeof(S[i][1]));
+    memcpy(S[i][2], &s2, sizeof(S[i][2]));
+
+    printf("    {\n");
+    if (ledger_gen) {
+      print_scalar_as_ledger_cstruct(S[i][0]);
+      print_scalar_as_ledger_cstruct(S[i][1]);
+      // Tests do not need S2
+    }
+    else {
+      print_scalar_as_cstruct(S[i][0]);
+      print_scalar_as_cstruct(S[i][1]);
+      // Tests do not need S2
+    }
+    printf("    },\n");
+
+    sha256_hash(s2, sizeof(s2), s0, sizeof(s0));
+    scalar_from_words(s0, s0);
+    // s0 is seed for next round!
+  }
+  printf("};\n");
+  printf("\n");
+
+  // Generate test curve points
+  printf("// Test curve points\n");
+  printf("static const Affine A[%u][3] = {\n", EPOCHS);
+
+  for (size_t i = 0; i < EPOCHS; i++) {
+    // Generate three curve points
+    generate_pubkey(&A[i][0], S[i][0]);
+    generate_pubkey(&A[i][1], S[i][1]);
+    generate_pubkey(&A[i][2], S[i][2]);
+
+    // Check on curve
+    assert(affine_is_on_curve(&A[i][0]));
+    assert(affine_is_on_curve(&A[i][1]));
+    assert(affine_is_on_curve(&A[i][2]));
+
+    printf("    {\n");
+    if (ledger_gen) {
+      print_affine_as_ledger_cstruct(&A[i][0]);
+      print_affine_as_ledger_cstruct(&A[i][1]);
+      print_affine_as_ledger_cstruct(&A[i][2]);
+    }
+    else {
+      print_affine_as_cstruct(&A[i][0]);
+      print_affine_as_cstruct(&A[i][1]);
+      print_affine_as_cstruct(&A[i][2]);
+    }
+    printf("    },\n");
+  }
+  printf("};\n");
+  printf("\n");
+
+  // Generate target outputs
+  printf("// Target outputs\n");
+  printf("static const Affine T[%u][5] = {\n", EPOCHS);
+  for (size_t i = 0; i < EPOCHS; i++) {
+    Affine a3;
+    Affine a4;
+    union {
+      // Fit in stackspace!
+      Affine a5;
+      Scalar s2;
+    } u;
+
+    // Test1: On curve after scaling
+    assert(affine_is_on_curve(&A[i][0]));
+    assert(affine_is_on_curve(&A[i][1]));
+    assert(affine_is_on_curve(&A[i][2]));
+
+    // Test2: Addition is commutative
+    //     A0 + A1 == A1 + A0
+    affine_add(&a3, &A[i][0], &A[i][1]); // a3 = A0 + A1
+    affine_add(&a4, &A[i][1], &A[i][0]); // a4 = A1 + A0
+    assert(affine_eq(&a3, &a4));
+    assert(affine_is_on_curve(&a3));
+
+    printf("    {\n");
+    if (ledger_gen) {
+      print_affine_as_ledger_cstruct(&a3);
+    }
+    else {
+      print_affine_as_cstruct(&a3);
+    }
+
+    // Test3: Scaling commutes with adding scalars
+    //     G*(S0 + S1) == G*S0 + G*S1
+    scalar_add(u.s2, S[i][0], S[i][1]);
+    generate_pubkey(&a3, u.s2);          // a3 = G*(S0 + S1)
+    affine_add(&a4, &A[i][0], &A[i][1]); // a4 = G*S0 + G*S1
+    assert(affine_eq(&a3, &a4));
+    assert(affine_is_on_curve(&a3));
+
+    if (ledger_gen) {
+      print_affine_as_ledger_cstruct(&a3);
+    }
+    else {
+      print_affine_as_cstruct(&a3);
+    }
+
+    // Test4: Scaling commutes with multiplying scalars
+    //    G*(S0*S1) == S0*(G*S1)
+    scalar_mul(u.s2, S[i][0], S[i][1]);
+    generate_pubkey(&a3, u.s2);                // a3 = G*(S0*S1)
+    affine_scalar_mul(&a4, S[i][0], &A[i][1]); // a4 = S0*(G*S1)
+    assert(affine_eq(&a3, &a4));
+    assert(affine_is_on_curve(&a3));
+
+    if (ledger_gen) {
+      print_affine_as_ledger_cstruct(&a3);
+    }
+    else {
+      print_affine_as_cstruct(&a3);
+    }
+
+    // Test5: Scaling commutes with negation
+    //    G*(-S0) == -(G*S0)
+    scalar_negate(u.s2, S[i][0]);
+    generate_pubkey(&a3, u.s2);   // a3 = G*(-S0)
+    affine_negate(&a4, &A[i][0]); // a4 = -(G*S0)
+    assert(affine_eq(&a3, &a4));
+    assert(affine_is_on_curve(&a3));
+
+    if (ledger_gen) {
+      print_affine_as_ledger_cstruct(&a3);
+    }
+    else {
+      print_affine_as_cstruct(&a3);
+    }
+
+    // Test6: Addition is associative
+    //     (A0 + A1) + A2 == A0 + (A1 + A2)
+    affine_add(&a3, &A[i][0], &A[i][1]);
+    affine_add(&a4, &a3, &A[i][2]);      // a4 = (A0 + A1) + A2
+    affine_add(&a3, &A[i][1], &A[i][2]);
+    affine_add(&u.a5, &A[i][0], &a3);    // a5 = A0 + (A1 + A2)
+    assert(affine_eq(&a4, &u.a5));
+    assert(affine_is_on_curve(&a4));
+
+    if (ledger_gen) {
+      print_affine_as_ledger_cstruct(&a4);
+    }
+    else {
+      print_affine_as_cstruct(&a4);
+    }
+    printf("    },\n");
+  }
+  printf("};\n\n");
+  printf("bool curve_checks(void);\n\n");
+
+  if (ledger_gen) {
+     printf("\n");
+     printf("** Copy the above constants and curve_checks.c into the ledger project\n");
+     printf("\n");
+  }
+}
+
 int main(int argc, char* argv[]) {
   printf("Running unit tests\n");
 
@@ -262,10 +540,13 @@ int main(int argc, char* argv[]) {
   // Address tests
 
   if (_ledger_gen) {
-    printf("    # These tests were automatically generated from the Mina c-reference-signer\n");
+    printf("    # Address generation tests\n");
     printf("    #\n");
-    printf("    #     Details: https://github.com/MinaProtocol/c-reference-signer/README.markdown\n");
-    printf("    #     Command: ./unit_tests ledger_gen\n\n");
+    printf("    #     These tests were automatically generated from the Mina c-reference-signer\n");
+    printf("    #\n");
+    printf("    #     Details:  https://github.com/MinaProtocol/c-reference-signer/README.markdown\n");
+    printf("    #     Generate: ./unit_tests ledger_gen\n");
+    printf("\n");
   }
 
   assert(check_get_address("0",
@@ -295,10 +576,13 @@ int main(int argc, char* argv[]) {
   // Sign payment tx tests
 
   if (_ledger_gen) {
-    printf("    # These tests were automatically generated from the Mina c-reference-signer\n");
+    printf("    # Sign transaction tests\n");
     printf("    #\n");
-    printf("    #     Details: https://github.com/MinaProtocol/c-reference-signer/README.markdown\n");
-    printf("    #     Command: ./unit_tests ledger_gen\n\n");
+    printf("    #     These tests were automatically generated from the Mina c-reference-signer\n");
+    printf("    #\n");
+    printf("    #     Details:  https://github.com/MinaProtocol/c-reference-signer/README.markdown\n");
+    printf("    #     Generate: ./unit_tests ledger_gen\n");
+    printf("\n");
   }
 
   assert(check_sign_tx("0",
@@ -390,6 +674,17 @@ int main(int argc, char* argv[]) {
                        "",
                        true,
                        "08a668739ec0bd4149e51a85ea9f05887232f91accb884c312dbca8ef7de0c9b341178cfb969c69bb9fc87df110276880cf09bcdf6b899ea3d1d1b4aa59e7c33"));
+
+  // Perform crypto tests
+  if (!curve_checks()) {
+      // Dump computed c-reference signer constants
+      generate_curve_checks(false);
+      fprintf(stderr, "!! Curve checks FAILED !! (error above)\n\n");
+      exit(211);
+  }
+  if (_ledger_gen) {
+      generate_curve_checks(true);
+  }
 
   printf("Unit tests completed successfully\n");
 
