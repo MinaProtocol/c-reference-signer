@@ -10,7 +10,7 @@
 //         - scalar_add, scalar_sub, scalar_mul, scalar_sq, scalar_pow, scalar_eq
 //         - group_add, group_dbl, group_scalar_mul (group elements use projective coordinates)
 //         - affine_scalar_mul
-//         - projective_to_affine
+//         - affine_from_group
 //         - generate_pubkey, generate_keypair
 //         - sign
 //
@@ -23,7 +23,6 @@
 // #include <assert.h>
 
 #define THROW exit
-#define INVALID_PARAMETER 1
 
 #include <assert.h>
 #include <inttypes.h>
@@ -34,14 +33,16 @@
 #include "pasta_fp.h"
 #include "pasta_fq.h"
 #include "blake2.h"
+#include "libbase58.h"
+#include "sha256.h"
 
 // a = 0, b = 5
 static const Field GROUP_COEFF_B = {
-    0xa1a55e68ffffffed, 0x74c2a54b4f4982f3, 0xfffffffffffffffd, 0x3fffffffffffffff
+  0xa1a55e68ffffffed, 0x74c2a54b4f4982f3, 0xfffffffffffffffd, 0x3fffffffffffffff
 };
 
 static const Field FIELD_ONE = {
-    0x34786d38fffffffd, 0x992c350be41914ad, 0xffffffffffffffff, 0x3fffffffffffffff
+  0x34786d38fffffffd, 0x992c350be41914ad, 0xffffffffffffffff, 0x3fffffffffffffff
 };
 static const Field FIELD_THREE = {
   0x6b0ee5d0fffffff5, 0x86f76d2b99b14bd0, 0xfffffffffffffffe, 0x3fffffffffffffff
@@ -117,9 +118,17 @@ unsigned int field_eq(const Field a, const Field b)
     }
 }
 
-void scalar_copy(Scalar c, const Scalar a)
+void scalar_copy(Scalar b, const Scalar a)
 {
-    fiat_pasta_fq_copy(c, a);
+    fiat_pasta_fq_copy(b, a);
+}
+
+void scalar_from_words(Scalar a, const uint64_t words[4])
+{
+    uint64_t tmp[4];
+    memcpy(tmp, words, sizeof(tmp));
+    tmp[3] &= (((uint64_t)1 << 62) - 1); // drop top two bits
+    fiat_pasta_fq_to_montgomery(a, tmp);
 }
 
 void scalar_add(Scalar c, const Scalar a, const Scalar b)
@@ -147,13 +156,9 @@ void scalar_negate(Scalar c, const Scalar a)
     fiat_pasta_fq_opp(c, a);
 }
 
-unsigned int scalar_eq(const Scalar a, const Scalar b)
+bool scalar_eq(const Scalar a, const Scalar b)
 {
-    if (fiat_pasta_fq_equals(a, b)) {
-      return 1;
-    } else {
-      return 0;
-    }
+    return fiat_pasta_fq_equals(a, b);
 }
 
 // zero is the only point with Z = 0 in jacobian coordinates
@@ -167,7 +172,7 @@ unsigned int affine_is_zero(const Affine *p)
     return (field_eq(p->x, FIELD_ZERO) && field_eq(p->y, FIELD_ZERO));
 }
 
-unsigned int is_on_curve(const Group *p)
+unsigned int group_is_on_curve(const Group *p)
 {
     if (is_zero(p)) {
         return 1;
@@ -200,7 +205,7 @@ unsigned int is_on_curve(const Group *p)
     return field_eq(lhs, rhs);
 }
 
-void affine_to_projective(Group *r, const Affine *p)
+void affine_to_group(Group *r, const Affine *p)
 {
     if (field_eq(p->x, FIELD_ZERO) && field_eq(p->y, FIELD_ZERO)) {
         os_memcpy(r->X, FIELD_ZERO, FIELD_BYTES);
@@ -214,7 +219,7 @@ void affine_to_projective(Group *r, const Affine *p)
     os_memcpy(r->Z, FIELD_ONE, FIELD_BYTES);
 }
 
-void projective_to_affine(Affine *r, const Group *p)
+void affine_from_group(Affine *r, const Group *p)
 {
     if (field_eq(p->Z, FIELD_ZERO)) {
         os_memcpy(r->x, FIELD_ZERO, FIELD_BYTES);
@@ -413,12 +418,48 @@ void group_scalar_mul(Group *r, const Scalar k, const Group *p)
     }
 }
 
+void group_negate(Group *q, const Group *p)
+{
+    field_copy(q->X, p->X);
+    field_negate(q->Y, p->Y);
+    field_copy(q->Z, p->Z);
+}
+
 void affine_scalar_mul(Affine *r, const Scalar k, const Affine *p)
 {
     Group pp, pr;
-    affine_to_projective(&pp, p);
+    affine_to_group(&pp, p);
     group_scalar_mul(&pr, k, &pp);
-    projective_to_affine(r, &pr);
+    affine_from_group(r, &pr);
+}
+
+bool affine_eq(const Affine *p, const Affine *q)
+{
+    return field_eq(p->x, q->x) && field_eq(p->y, q->y);
+}
+
+void affine_add(Affine *r, const Affine *p, const Affine *q)
+{
+    Group gr, gp, gq;
+    affine_to_group(&gp, p);
+    affine_to_group(&gq, q);
+    group_add(&gr, &gp, &gq);
+    affine_from_group(r, &gr);
+}
+
+void affine_negate(Affine *q, const Affine *p)
+{
+    Group gq, gp;
+    affine_to_group(&gp, p);
+    group_negate(&gq, &gp);
+    affine_from_group(q, &gq);
+}
+
+bool affine_is_on_curve(const Affine *p)
+{
+    Group gp;
+    affine_to_group(&gp, p);
+    return group_is_on_curve(&gp);
 }
 
 bool is_odd(const Field y)
@@ -583,7 +624,7 @@ size_t roinput_to_fields(uint64_t *out, const ROInput *input) {
 
     size_t remaining = input->bits_len - bits_consumed;
     size_t chunk_size_in_bits = remaining >= MAX_CHUNK_SIZE ? MAX_CHUNK_SIZE : remaining;
-    
+
     for (size_t i = 0; i < chunk_size_in_bits; ++i) {
       size_t limb_idx = i / 64;
       size_t in_limb_idx = (i % 64);
@@ -645,6 +686,50 @@ void generate_keypair(Keypair *keypair, uint32_t account)
 void generate_pubkey(Affine *pub_key, const Scalar priv_key)
 {
     affine_scalar_mul(pub_key, priv_key, &AFFINE_ONE);
+}
+
+bool generate_address(char *address, const size_t len, const Affine *pub_key)
+{
+    address[0] = '\0';
+
+    assert (len == MINA_ADDRESS_LEN);
+    if (len != MINA_ADDRESS_LEN) {
+        return false;
+    }
+
+    struct bytes {
+        uint8_t version;
+        uint8_t payload[35];
+        uint8_t checksum[4];
+    } raw;
+
+    raw.version    = 0xcb; // version for base58 check
+    raw.payload[0] = 0x01; // non_zero_curve_point version
+    raw.payload[1] = 0x01; // compressed_poly version
+
+    // x-coordinate
+    fiat_pasta_fp_from_montgomery((uint64_t *)&raw.payload[2], pub_key->x);
+
+    // y-coordinate parity
+    raw.payload[34] = is_odd(pub_key->y);
+
+    uint8_t hash1[SHA256_BLOCK_SIZE];
+    sha256_hash(&raw, 36, hash1, sizeof(hash1));
+
+    uint8_t hash2[SHA256_BLOCK_SIZE];
+    sha256_hash(hash1, sizeof(hash1), hash2, sizeof(hash2));
+
+    memcpy(raw.checksum, hash2, 4);
+
+    // Encode as address
+    size_t out_len = len;
+    bool result = b58enc(address, &out_len, &raw, sizeof(raw));
+    address[MINA_ADDRESS_LEN - 1] = '\0';
+    assert(out_len == len);
+    if (out_len != len) {
+        return false;
+    }
+    return result;
 }
 
 void message_derive(Scalar out, const Keypair *kp, const ROInput *msg)
@@ -768,6 +853,39 @@ void decompress(Affine *pt, const Compressed *compressed) {
   }
 }
 
+void read_public_key_compressed(Compressed *out, const char *pubkeyBase58) {
+  size_t pubkeyBytesLen = 40;
+  unsigned char pubkeyBytes[40];
+  b58tobin(pubkeyBytes, &pubkeyBytesLen, pubkeyBase58, 0);
+
+  uint64_t x_coord_non_montgomery[4] = { 0, 0, 0, 0 };
+
+  size_t offset = 3;
+  for (size_t i = 0; i < 4; ++i) {
+    const size_t BYTES_PER_LIMB = 8;
+    // 8 bytes per limb
+    for (size_t j = 0; j < BYTES_PER_LIMB; ++j) {
+      size_t k = offset + BYTES_PER_LIMB * i + j;
+      x_coord_non_montgomery[i] |= ( ((uint64_t) pubkeyBytes[k]) << (8 * j));
+    }
+  }
+
+  fiat_pasta_fp_to_montgomery(out->x, x_coord_non_montgomery);
+  out->is_odd = (bool) pubkeyBytes[offset + 32];
+}
+
+void prepare_memo(uint8_t *out, const char *s) {
+  size_t len = strlen(s);
+  out[0] = 1;
+  out[1] = len; // length
+  for (size_t i = 0; i < len; ++i) {
+    out[2 + i] = s[i];
+  }
+  for (size_t i = 2 + len; i < MEMO_BYTES; ++i) {
+    out[i] = 0;
+  }
+}
+
 bool verify(Signature *sig, const Compressed *pub_compressed, const Transaction *transaction)
 {
     // Convert transaction to ROInput
@@ -807,13 +925,13 @@ bool verify(Signature *sig, const Compressed *pub_compressed, const Transaction 
     message_hash(e, &pub, sig->rx, &input);
 
     Group g;
-    affine_to_projective(&g, &AFFINE_ONE);
+    affine_to_group(&g, &AFFINE_ONE);
 
     Group sg;
     group_scalar_mul(&sg, sig->s, &g);
 
     Group pub_proj;
-    affine_to_projective(&pub_proj, &pub);
+    affine_to_group(&pub_proj, &pub);
     Group epub;
     group_scalar_mul(&epub, e, &pub_proj);
 
@@ -826,7 +944,7 @@ bool verify(Signature *sig, const Compressed *pub_compressed, const Transaction 
     group_add(&r, &sg, &neg_epub);
 
     Affine raff;
-    projective_to_affine(&raff, &r);
+    affine_from_group(&raff, &r);
 
     Field ry_bigint;
     fiat_pasta_fp_from_montgomery(ry_bigint, raff.y);

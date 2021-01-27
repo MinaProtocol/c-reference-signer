@@ -2,43 +2,11 @@
 #include "pasta_fp.h"
 #include "pasta_fq.h"
 #include "crypto.h"
-#include "libbase58.h"
 #include "base10.h"
+#include "utils.h"
+
 #include <sys/resource.h>
 #include <inttypes.h>
-
-void read_public_key_compressed(Compressed* out, char* pubkeyBase58) {
-  size_t pubkeyBytesLen = 40;
-  unsigned char pubkeyBytes[40];
-  b58tobin(pubkeyBytes, &pubkeyBytesLen, pubkeyBase58, 0);
-
-  uint64_t x_coord_non_montgomery[4] = { 0, 0, 0, 0 };
-
-  size_t offset = 3;
-  for (size_t i = 0; i < 4; ++i) {
-    const size_t BYTES_PER_LIMB = 8;
-    // 8 bytes per limb
-    for (size_t j = 0; j < BYTES_PER_LIMB; ++j) {
-      size_t k = offset + BYTES_PER_LIMB * i + j;
-      x_coord_non_montgomery[i] |= ( ((uint64_t) pubkeyBytes[k]) << (8 * j));
-    }
-  }
-
-  fiat_pasta_fp_to_montgomery(out->x, x_coord_non_montgomery);
-  out->is_odd = (bool) pubkeyBytes[offset + 32];
-}
-
-void prepare_memo(uint8_t* out, char* s) {
-  size_t len = strlen(s);
-  out[0] = 1;
-  out[1] = len; // length
-  for (size_t i = 0; i < len; ++i) {
-    out[2 + i] = s[i];
-  }
-  for (size_t i = 2 + len; i < MEMO_BYTES; ++i) {
-    out[i] = 0;
-  }
-}
 
 #define DEFAULT_TOKEN_ID 1
 
