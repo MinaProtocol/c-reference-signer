@@ -17,6 +17,7 @@
 #define FIELD_BYTES   32
 
 #define LIMBS_PER_FIELD 4
+#define LIMBS_PER_SCALAR 4
 
 #define FIELD_SIZE_IN_BITS 255
 
@@ -44,23 +45,23 @@ typedef bool Tag[3];
 
 typedef uint8_t* PackedBits;
 
-typedef struct group {
+typedef struct group_t {
     Field X;
     Field Y;
     Field Z;
 } Group;
 
-typedef struct affine {
+typedef struct affine_t {
     Field x;
     Field y;
 } Affine;
 
-typedef struct compressed {
+typedef struct compressed_t {
     Field x;
     bool is_odd;
 } Compressed;
 
-typedef struct transaction {
+typedef struct transaction_t {
   // common
   Currency fee;
   TokenId fee_token;
@@ -77,17 +78,17 @@ typedef struct transaction {
   bool token_locked;
 } Transaction;
 
-typedef struct signature {
+typedef struct signature_t {
     Field rx;
     Scalar s;
 } Signature;
 
-typedef struct keypair {
+typedef struct keypair_t {
     Affine pub;
     Scalar priv;
 } Keypair;
 
-typedef struct roinput {
+typedef struct roinput_t {
   uint64_t* fields;
   PackedBits bits;
   size_t fields_len;

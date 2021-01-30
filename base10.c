@@ -71,6 +71,7 @@ void decimalint_to_string(char* out, const DecimalInt x) {
     i -= 1;
     j += 1;
   }
+  out[j] = '\0';
 }
 
 void bigint_to_string(char* out, const uint64_t x[4]) {
