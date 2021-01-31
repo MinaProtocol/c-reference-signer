@@ -43,6 +43,9 @@ typedef uint8_t Memo[MEMO_BYTES];
 typedef bool Tag[3];
 #define TAG_BITS 3
 
+#define MAINNET_ID 1
+#define TESTNET_ID 0
+
 typedef uint8_t* PackedBits;
 
 typedef struct group_t {
@@ -126,8 +129,8 @@ void generate_keypair(Keypair *keypair, uint32_t account);
 void generate_pubkey(Affine *pub_key, const Scalar priv_key);
 bool generate_address(char *address, size_t len, const Affine *pub_key);
 
-void sign(Signature *sig, const Keypair *kp, const Transaction *transaction);
-bool verify(Signature *sig, const Compressed *pub, const Transaction *transaction);
+void sign(Signature *sig, const Keypair *kp, const Transaction *transaction, uint8_t network_id);
+bool verify(Signature *sig, const Compressed *pub, const Transaction *transaction, uint8_t network_id);
 
 void compress(Compressed *compressed, const Affine *pt);
 

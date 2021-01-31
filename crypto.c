@@ -24,8 +24,6 @@
 
 #define THROW exit
 
-#define MAINNET 0
-
 #include <assert.h>
 #include <inttypes.h>
 
@@ -37,6 +35,18 @@
 #include "blake2.h"
 #include "libbase58.h"
 #include "sha256.h"
+
+State MAINNET_INIT_STATE = {
+  {0xc21e7c13c81e894, 0x710189d783717f27, 0x7825ac132f04e050, 0x6fd140c96a52f28},
+  {0x25611817aeec99d8, 0x24e1697f7e63d4b4, 0x13dabc79c3b8bba9, 0x232c7b1c778fbd08},
+  {0x70bff575f3c9723c, 0x96818a1c2ae2e7ef, 0x2eec149ee0aacb0c, 0xecf6e7248a576ad}
+};
+
+State TESTNET_INIT_STATE = {
+  { 0x67097c15f1a46d64, 0xc76fd61db3c20173, 0xbdf9f393b220a17, 0x10c0e352378ab1fd} ,
+  { 0x57dbbe3a20c2a32, 0x486f1b93a41e04c7, 0xa21341e97da1bdc1, 0x24a095608e4bf2e9},
+  { 0xd4559679d839ff92, 0x577371d495f4d71b, 0x3227c7db607b3ded, 0x2ca212648a12291e}
+};
 
 // a = 0, b = 5
 static const Field GROUP_COEFF_B = {
@@ -734,13 +744,13 @@ bool generate_address(char *address, const size_t len, const Affine *pub_key)
     return result;
 }
 
-void message_derive(Scalar out, const Keypair *kp, const ROInput *msg)
+void message_derive(Scalar out, const Keypair *kp, const ROInput *msg, uint8_t network_id)
 {
     ROInput input;
     uint64_t input_fields[4 * 5];
-    uint8_t input_bits[107];
-    size_t bits_capacity = 8 * 107;
-    uint8_t input_bytes[267] = { 0 };
+    uint8_t input_bits[108];
+    size_t bits_capacity = 8 * 108;
+    uint8_t input_bytes[268] = { 0 };
 
     input.fields = input_fields;
     input.bits = input_bits;
@@ -758,10 +768,11 @@ void message_derive(Scalar out, const Keypair *kp, const ROInput *msg)
     roinput_add_field(&input, kp->pub.x);
     roinput_add_field(&input, kp->pub.y);
     roinput_add_scalar(&input, kp->priv);
+    roinput_add_bytes(&input, &network_id, 1);
 
     size_t input_size_in_bits = input.bits_len + FIELD_SIZE_IN_BITS * input.fields_len;
     size_t input_size_in_bytes = (input_size_in_bits + 7) / 8;
-    assert(input_size_in_bytes <= 267);
+    assert(input_size_in_bytes <= 268);
     roinput_to_bytes(input_bytes, &input);
 
     uint8_t hash_out[32];
@@ -781,7 +792,7 @@ void message_derive(Scalar out, const Keypair *kp, const ROInput *msg)
     fiat_pasta_fq_to_montgomery(out, tmp);
 }
 
-void message_hash(Scalar out, const Affine *pub, const Field rx, const ROInput *msg)
+void message_hash(Scalar out, const Affine *pub, const Field rx, const ROInput *msg, uint8_t network_id)
 {
     ROInput input;
 
@@ -806,19 +817,8 @@ void message_hash(Scalar out, const Affine *pub, const Field rx, const ROInput *
     roinput_add_field(&input, rx);
 
     // Initial sponge state
-#if MAINNET
-    State pos = {
-      {0xc21e7c13c81e894, 0x710189d783717f27, 0x7825ac132f04e050, 0x6fd140c96a52f28},
-      {0x25611817aeec99d8, 0x24e1697f7e63d4b4, 0x13dabc79c3b8bba9, 0x232c7b1c778fbd08},
-      {0x70bff575f3c9723c, 0x96818a1c2ae2e7ef, 0x2eec149ee0aacb0c, 0xecf6e7248a576ad}
-    };
-#else
-    State pos = {
-      { 0x67097c15f1a46d64, 0xc76fd61db3c20173, 0xbdf9f393b220a17, 0x10c0e352378ab1fd} ,
-      { 0x57dbbe3a20c2a32, 0x486f1b93a41e04c7, 0xa21341e97da1bdc1, 0x24a095608e4bf2e9},
-      { 0xd4559679d839ff92, 0x577371d495f4d71b, 0x3227c7db607b3ded, 0x2ca212648a12291e}
-    };
-#endif
+    State pos;
+    poseidon_copy_state(pos, network_id == MAINNET_ID ? MAINNET_INIT_STATE : TESTNET_INIT_STATE);
 
     // over-estimate of field elements needed
     uint64_t packed_elements[20 * LIMBS_PER_FIELD];
@@ -896,7 +896,7 @@ void prepare_memo(uint8_t *out, const char *s) {
   }
 }
 
-bool verify(Signature *sig, const Compressed *pub_compressed, const Transaction *transaction)
+bool verify(Signature *sig, const Compressed *pub_compressed, const Transaction *transaction, uint8_t network_id)
 {
     // Convert transaction to ROInput
     uint64_t input_fields[4 * 3];
@@ -932,7 +932,7 @@ bool verify(Signature *sig, const Compressed *pub_compressed, const Transaction 
     decompress(&pub, pub_compressed);
 
     Scalar e;
-    message_hash(e, &pub, sig->rx, &input);
+    message_hash(e, &pub, sig->rx, &input, network_id);
 
     Group g;
     affine_to_group(&g, &AFFINE_ONE);
@@ -964,7 +964,7 @@ bool verify(Signature *sig, const Compressed *pub_compressed, const Transaction 
     return (ry_even && fiat_pasta_fp_equals(raff.x, sig->rx));
 }
 
-void sign(Signature *sig, const Keypair *kp, const Transaction *transaction)
+void sign(Signature *sig, const Keypair *kp, const Transaction *transaction, uint8_t network_id)
 {
     // Convert transaction to ROInput
     uint64_t input_fields[4 * 3];
@@ -997,7 +997,7 @@ void sign(Signature *sig, const Keypair *kp, const Transaction *transaction)
     roinput_add_bit(&input, transaction->token_locked);
 
     Scalar k;
-    message_derive(k, kp, &input);
+    message_derive(k, kp, &input, network_id);
 
     uint64_t k_nonzero;
     fiat_pasta_fq_nonzero(&k_nonzero, k);
@@ -1019,7 +1019,7 @@ void sign(Signature *sig, const Keypair *kp, const Transaction *transaction)
     }
 
     Scalar e;
-    message_hash(e, &kp->pub, r.x, &input);
+    message_hash(e, &kp->pub, r.x, &input, network_id);
 
     // s = k + e*sk
     Scalar e_priv;
