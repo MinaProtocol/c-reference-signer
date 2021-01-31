@@ -8,6 +8,8 @@
 #include <sys/resource.h>
 #include <inttypes.h>
 
+#define MAINNET 0
+
 #define DEFAULT_TOKEN_ID 1
 
 int main(int argc, char* argv[]) {
@@ -78,9 +80,10 @@ int main(int argc, char* argv[]) {
   compress(&pub_compressed, &kp.pub);
 
   Signature sig;
-  sign(&sig, &kp, &txn);
+  uint8_t network_id = MAINNET ? MAINNET_ID : TESTNET_ID;
+  sign(&sig, &kp, &txn, network_id);
 
-  if (!verify(&sig, &pub_compressed, &txn)) {
+  if (!verify(&sig, &pub_compressed, &txn, network_id)) {
     exit(1);
   }
 
@@ -166,9 +169,9 @@ int main(int argc, char* argv[]) {
   del.token_locked = false;
   del.amount = 0;
 
-  sign(&sig, &kp, &del);
+  sign(&sig, &kp, &del, network_id);
 
-  if (!verify(&sig, &pub_compressed, &del)) {
+  if (!verify(&sig, &pub_compressed, &del, network_id)) {
     exit(1);
   }
 
