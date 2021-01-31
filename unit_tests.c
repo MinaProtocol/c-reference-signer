@@ -113,7 +113,8 @@ bool sign_transaction(char *signature, const size_t len,
                       Nonce nonce,
                       GlobalSlot valid_until,
                       const char *memo,
-                      bool delegation) {
+                      bool delegation,
+                      uint8_t network_id) {
   Transaction txn;
 
   assert(len == 2*sizeof(Signature) + 1);
@@ -166,9 +167,9 @@ bool sign_transaction(char *signature, const size_t len,
   compress(&pub_compressed, &kp.pub);
 
   Signature sig;
-  sign(&sig, &kp, &txn);
+  sign(&sig, &kp, &txn, network_id);
 
-  if (!verify(&sig, &pub_compressed, &txn)) {
+  if (!verify(&sig, &pub_compressed, &txn, network_id)) {
     return false;
   }
 
@@ -225,7 +226,8 @@ bool check_sign_tx(const char *account_number,
                    GlobalSlot valid_until,
                    const char *memo,
                    bool delegation,
-                   const char *signature) {
+                   const char *signature,
+                   uint8_t network_id) {
   char target[129];
   if (!sign_transaction(target, sizeof(target),
                         account_number,
@@ -236,7 +238,8 @@ bool check_sign_tx(const char *account_number,
                         nonce,
                         valid_until,
                         memo,
-                        delegation)) {
+                        delegation,
+                        network_id)) {
     return false;
    }
 
@@ -581,96 +584,131 @@ int main(int argc, char* argv[]) {
     printf("\n");
   }
 
-  assert(check_sign_tx("0",
-                       "164244176fddb5d769b7de2027469d027ad428fadcc0c02396e6280142efb718",
-                       "B62qicipYxyEHu7QjUqS7QvBipTs5CzgkYZZZkPoKVYBu6tnDUcE9Zt",
-                       1729000000000,
-                       2000000000,
-                       16,
-                       271828,
-                       "Hello Mina!",
-                       false,
-                       "0a68fc40b470abedd14cd8b830effa4fa6225e76cbc67fa46dfb0f825c0d1a7d1a8685817e449150070456b5628eeb9af954040e023d3a1b4211c818d210ee56"));
+  uint8_t network_ids[2] = { TESTNET_ID, MAINNET_ID };
 
-  assert(check_sign_tx("12586",
-                       "3414fc16e86e6ac272fda03cf8dcb4d7d47af91b4b726494dab43bf773ce1779",
-                       "B62qrKG4Z8hnzZqp1AL8WsQhQYah3quN1qUj3SyfJA8Lw135qWWg1mi",
-                       314159265359,
-                       1618033988,
-                       0,
-                       4294967295,
-                       "",
-                       false,
-                       "32d7ea2ae54df316e7baa4bebf8a62ea1cfb321debc75e27fc0ba302beba383a398ec6e103e0101a20179955bb11a1956bf0b470d7782344aec4d8d0fc73ed92"));
+  char* signatures[2][8] = {
+    {
+      "11a36a8dfe5b857b95a2a7b7b17c62c3ea33411ae6f4eb3a907064aecae353c60794f1d0288322fe3f8bb69d6fabd4fd7c15f8d09f8783b2f087a80407e299af",
+      "23a9e2375dd3d0cd061e05c33361e0ba270bf689c4945262abdcc81d7083d8c311ae46b8bebfc98c584e2fb54566851919b58cf0917a256d2c1113daa1ccb27f",
+      "2b4d0bffcb57981d11a93c05b17672b7be700d42af8496e1ba344394da5d0b0b0432c1e8a77ee1bd4b8ef6449297f7ed4956b81df95bdc6ac95d128984f77205",
+      "25bb730a25ce7180b1e5766ff8cc67452631ee46e2d255bccab8662e5f1f0c850a4bb90b3e7399e935fff7f1a06195c6ef89891c0260331b9f381a13e5507a4c",
+      "30797d7d0426e54ff195d1f94dc412300f900cc9e84990603939a77b3a4d2fc11ebab12857b47c481c182abe147279732549f0fd49e68d5541f825e9d1e6fa04",
+      "07e9f88fc671ed06781f9edb233fdbdee20fa32303015e795747ad9e43fcb47b3ce34e27e31f7c667756403df3eb4ce670d9175dd0ae8490b273485b71c56066",
+      "1ff9f77fed4711e0ebe2a7a46a7b1988d1b62a850774bf299ec71a24d5ebfdd81d04a570e4811efe867adefe3491ba8b210f24bd0ec8577df72212d61b569b15",
+      "26ca6b95dee29d956b813afa642a6a62cd89b1929320ed6b099fd191a217b08d2c9a54ba1c95e5000b44b93cfbd3b625e20e95636f1929311473c10858a27f09"
+    },
+    {
+      "124c592178ed380cdffb11a9f8e1521bf940e39c13f37ba4c55bb4454ea69fba3c3595a55b06dac86261bb8ab97126bf3f7fff70270300cb97ff41401a5ef789",
+      "204eb1a37e56d0255921edd5a7903c210730b289a622d45ed63a52d9e3e461d13dfcf301da98e218563893e6b30fa327600c5ff0788108652a06b970823a4124",
+      "076d8ebca8ccbfd9c8297a768f756ff9d08c049e585c12c636d57ffcee7f6b3b1bd4b9bd42cc2cbee34b329adbfc5127fe5a2ceea45b7f55a1048b7f1a9f7559",
+      "058ed7fb4e17d9d400acca06fe20ca8efca2af4ac9a3ed279911b0bf93c45eea0e8961519b703c2fd0e431061d8997cac4a7574e622c0675227d27ce2ff357d9",
+      "0904e9521a95334e3f6757cb0007ec8af3322421954255e8d263d0616910b04d213344f8ec020a4b873747d1cbb07296510315a2ec76e52150a4c765520d387f",
+      "2406ab43f8201bd32bdd81b361fdb7871979c0eec4e3b7a91edf87473963c8a4069f4811ebc5a0e85cbb4951bffe93b638e230ce5a250cb08d2c250113a1967c",
+      "36a80d0421b9c0cbfa08ea95b27f401df108b30213ae138f1f5978ffc59606cf2b64758db9d26bd9c5b908423338f7445c8f0a07520f2154bbb62926aa0cb8fa",
+      "093f9ef0e4e051279da0a3ded85553847590ab739ee1bfd59e5bb30f98ed8a001a7a60d8506e2572164b7a525617a09f17e1756ac37555b72e01b90f37271595",
+    }
+  };
 
-  assert(check_sign_tx("12586",
-                       "3414fc16e86e6ac272fda03cf8dcb4d7d47af91b4b726494dab43bf773ce1779",
-                       "B62qoqiAgERjCjXhofXiD7cMLJSKD8hE8ZtMh4jX5MPNgKB4CFxxm1N",
-                       271828182845904,
-                       100000,
-                       5687,
-                       4294967295,
-                       "01234567890123456789012345678901",
-                       false,
-                       "063a7b5b5b78090760eb93cbfacf5672155e1c0bcfd5629d75b06bbb079694922f1394b7eb2f929b5a97f229e988523223e4b7fee531d8d85caafd1c702b1673"));
+  for (size_t i = 0; i < 2; ++i) {
+    uint8_t network_id = network_ids[i];
+    assert(check_sign_tx("0",
+                        "164244176fddb5d769b7de2027469d027ad428fadcc0c02396e6280142efb718",
+                        "B62qicipYxyEHu7QjUqS7QvBipTs5CzgkYZZZkPoKVYBu6tnDUcE9Zt",
+                        1729000000000,
+                        2000000000,
+                        16,
+                        271828,
+                        "Hello Mina!",
+                        false,
+                        signatures[i][0],
+                        network_id));
 
-  assert(check_sign_tx("3",
-                       "1dee867358d4000f1dafa5978341fb515f89eeddbe450bd57df091f1e63d4444",
-                       "B62qnzbXmRNo9q32n4SNu2mpB8e7FYYLH8NmaX6oFCBYjjQ8SbD7uzV",
-                       0,
-                       2000000000,
-                       0,
-                       1982,
-                       "",
-                       false,
-                       "09c5712632f6281a43c64dbb936ce6002a0c2e004b375037a05ec7e266f9f1be3f8e5bdd506c35c6546cfc4edbeaff816a38096c0bdb408341eb0e25adbf4d83"));
+    assert(check_sign_tx("12586",
+                        "3414fc16e86e6ac272fda03cf8dcb4d7d47af91b4b726494dab43bf773ce1779",
+                        "B62qrKG4Z8hnzZqp1AL8WsQhQYah3quN1qUj3SyfJA8Lw135qWWg1mi",
+                        314159265359,
+                        1618033988,
+                        0,
+                        4294967295,
+                        "",
+                        false,
+                        signatures[i][1],
+                        network_id));
 
-  // Sign delegation tx tests
+    assert(check_sign_tx("12586",
+                        "3414fc16e86e6ac272fda03cf8dcb4d7d47af91b4b726494dab43bf773ce1779",
+                        "B62qoqiAgERjCjXhofXiD7cMLJSKD8hE8ZtMh4jX5MPNgKB4CFxxm1N",
+                        271828182845904,
+                        100000,
+                        5687,
+                        4294967295,
+                        "01234567890123456789012345678901",
+                        false,
+                        signatures[i][2],
+                        network_id));
 
-  assert(check_sign_tx("0",
-                       "164244176fddb5d769b7de2027469d027ad428fadcc0c02396e6280142efb718",
-                       "B62qicipYxyEHu7QjUqS7QvBipTs5CzgkYZZZkPoKVYBu6tnDUcE9Zt",
-                       0,
-                       2000000000,
-                       16,
-                       1337,
-                       "Delewho?",
-                       true,
-                       "376cd8a00b4ce495b3b23187b94a688a1c36837d2eb911c0085b3e37ba96dea02a3573e6a6471b068e14a03fe0b7d6399119ea52e4a310c3f98d7af5d988c676"));
+    assert(check_sign_tx("3",
+                        "1dee867358d4000f1dafa5978341fb515f89eeddbe450bd57df091f1e63d4444",
+                        "B62qnzbXmRNo9q32n4SNu2mpB8e7FYYLH8NmaX6oFCBYjjQ8SbD7uzV",
+                        0,
+                        2000000000,
+                        0,
+                        1982,
+                        "",
+                        false,
+                        signatures[i][3],
+                        network_id));
 
-  assert(check_sign_tx("49370",
-                       "20f84123a26e58dd32b0ea3c80381f35cd01bc22a20346cc65b0a67ae48532ba",
-                       "B62qnzbXmRNo9q32n4SNu2mpB8e7FYYLH8NmaX6oFCBYjjQ8SbD7uzV",
-                       0,
-                       2000000000,
-                       0,
-                       4294967295,
-                       "",
-                       true,
-                       "05a1f5f50c6fe5616023251653e5be099d0ad942323498fb23bcfcd21c5fab6a3a641fce6d51e05566b0ce1244da30b0014cb7580f760f84e58eb654190bc607"));
+    // Sign delegation tx tests
 
-  assert(check_sign_tx("12586",
-                       "3414fc16e86e6ac272fda03cf8dcb4d7d47af91b4b726494dab43bf773ce1779",
-                       "B62qkiT4kgCawkSEF84ga5kP9QnhmTJEYzcfgGuk6okAJtSBfVcjm1M",
-                       0,
-                       42000000000,
-                       1,
-                       4294967295,
-                       "more delegates, more fun........",
-                       true,
-                       "29febace385dfad1bcc97f1297d5f8c5bdadb57faf1c20a9c9f6c7516f80c6af05b0a0a186332f544b70c8e8717355bd7ebde310dee31b351f333219443ac798"));
+    assert(check_sign_tx("0",
+                        "164244176fddb5d769b7de2027469d027ad428fadcc0c02396e6280142efb718",
+                        "B62qicipYxyEHu7QjUqS7QvBipTs5CzgkYZZZkPoKVYBu6tnDUcE9Zt",
+                        0,
+                        2000000000,
+                        16,
+                        1337,
+                        "Delewho?",
+                        true,
+                        signatures[i][4],
+                        network_id));
 
-  assert(check_sign_tx("2",
-                       "336eb4a19b3d8905824b0f2254fb495573be302c17582748bf7e101965aa4774",
-                       "B62qicipYxyEHu7QjUqS7QvBipTs5CzgkYZZZkPoKVYBu6tnDUcE9Zt",
-                       0,
-                       1202056900,
-                       0,
-                       577216,
-                       "",
-                       true,
-                       "08a668739ec0bd4149e51a85ea9f05887232f91accb884c312dbca8ef7de0c9b341178cfb969c69bb9fc87df110276880cf09bcdf6b899ea3d1d1b4aa59e7c33"));
+    assert(check_sign_tx("49370",
+                        "20f84123a26e58dd32b0ea3c80381f35cd01bc22a20346cc65b0a67ae48532ba",
+                        "B62qnzbXmRNo9q32n4SNu2mpB8e7FYYLH8NmaX6oFCBYjjQ8SbD7uzV",
+                        0,
+                        2000000000,
+                        0,
+                        4294967295,
+                        "",
+                        true,
+                        signatures[i][5],
+                        network_id));
 
+    assert(check_sign_tx("12586",
+                        "3414fc16e86e6ac272fda03cf8dcb4d7d47af91b4b726494dab43bf773ce1779",
+                        "B62qkiT4kgCawkSEF84ga5kP9QnhmTJEYzcfgGuk6okAJtSBfVcjm1M",
+                        0,
+                        42000000000,
+                        1,
+                        4294967295,
+                        "more delegates, more fun........",
+                        true,
+                        signatures[i][6],
+                        network_id));
+
+    assert(check_sign_tx("2",
+                        "336eb4a19b3d8905824b0f2254fb495573be302c17582748bf7e101965aa4774",
+                        "B62qicipYxyEHu7QjUqS7QvBipTs5CzgkYZZZkPoKVYBu6tnDUcE9Zt",
+                        0,
+                        1202056900,
+                        0,
+                        577216,
+                        "",
+                        true,
+                        signatures[i][7],
+                        network_id));
+  }
   // Perform crypto tests
   if (!curve_checks()) {
       // Dump computed c-reference signer constants
