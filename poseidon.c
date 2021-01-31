@@ -635,3 +635,9 @@ void poseidon_digest(Scalar out, const State s) {
     // other field.
     fiat_pasta_fq_to_montgomery(out, tmp);
 }
+
+void poseidon_copy_state(State out, const State s) {
+  for (size_t i = 0; i < SPONGE_SIZE; ++i) {
+    fiat_pasta_fp_copy(out[i], s[i]);
+  }
+}

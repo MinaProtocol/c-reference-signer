@@ -28,3 +28,4 @@ typedef Field State[SPONGE_SIZE];
 
 void poseidon_update(State s, const uint64_t *input, size_t len);
 void poseidon_digest(Scalar out, const State s);
+void poseidon_copy_state(State out, const State s);
