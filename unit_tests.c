@@ -78,7 +78,7 @@ bool privhex_to_address(char *address, const size_t len,
   else if (_ledger_gen) {
     printf("    # account %s\n", account_number);
     printf("    # private key %s\n", priv_hex);
-    printf("    assert(mina.ledger_get_address(%s) == \"%s\")\n\n",
+    printf("    assert(test_get_address(%s) == \"%s\")\n\n",
            account_number, address);
   }
 
@@ -179,19 +179,19 @@ bool sign_transaction(char *signature, const size_t len,
     fprintf(stderr, "%d %s\n", delegation, signature);
   }
   else if (_ledger_gen) {
-    // TX_TYPE_PAYMENT
     printf("    # account %s\n", account_number);
     printf("    # private key %s\n", sender_priv_hex);
     printf("    # sig=%s\n", signature);
-    printf("    assert(mina.ledger_sign_tx(mina.%s,\n"
-           "                               %s,\n"
-           "                               \"%s\",\n"
-           "                               \"%s\",\n"
-           "                               %zu,\n"
-           "                               %zu,\n"
-           "                               %u,\n"
-           "                               %u,\n"
-           "                               \"%s\") == \"%s\")\n\n",
+    printf("    assert(test_sign_tx(mina.%s,\n"
+           "                        %s,\n"
+           "                        \"%s\",\n"
+           "                        \"%s\",\n"
+           "                        %zu,\n"
+           "                        %zu,\n"
+           "                        %u,\n"
+           "                        %u,\n"
+           "                        \"%s\",\n"
+           "                        mina.%s) == \"%s\")\n\n",
            delegation ? "TX_TYPE_DELEGATION" : "TX_TYPE_PAYMENT",
            account_number,
            source_str,
@@ -201,6 +201,7 @@ bool sign_transaction(char *signature, const size_t len,
            nonce,
            valid_until,
            memo,
+           network_id == MAINNET_ID ? "MAINNET_ID" : "TESTNET_ID",
            signature);
   }
 
@@ -709,6 +710,12 @@ int main(int argc, char* argv[]) {
                         signatures[i][7],
                         network_id));
   }
+
+  // Check testnet and mainnet signatures are not equal
+  for (size_t i = 0; i < 8; ++i) {
+      assert(strncmp(signatures[0][i], signatures[1][i], strlen(signatures[1][i])) != 0);
+  }
+
   // Perform crypto tests
   if (!curve_checks()) {
       // Dump computed c-reference signer constants
