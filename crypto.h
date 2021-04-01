@@ -14,7 +14,8 @@
 #define BIP32_PATH_LEN 5
 #define BIP32_HARDENED_OFFSET 0x80000000
 
-#define FIELD_BYTES   32
+#define FIELD_BYTES  32
+#define SCALAR_BYTES 32
 
 #define LIMBS_PER_FIELD 4
 #define LIMBS_PER_SCALAR 4
@@ -130,6 +131,7 @@ void generate_pubkey(Affine *pub_key, const Scalar priv_key);
 bool generate_address(char *address, size_t len, const Affine *pub_key);
 
 void sign(Signature *sig, const Keypair *kp, const Transaction *transaction, uint8_t network_id);
+bool sign_message(Signature *sig, const Keypair *kp, const uint8_t *msg, const size_t len, const uint8_t network_id);
 bool verify(Signature *sig, const Compressed *pub, const Transaction *transaction, uint8_t network_id);
 
 void compress(Compressed *compressed, const Affine *pt);

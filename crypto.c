@@ -747,10 +747,11 @@ bool generate_address(char *address, const size_t len, const Affine *pub_key)
 void message_derive(Scalar out, const Keypair *kp, const ROInput *msg, uint8_t network_id)
 {
     ROInput input;
-    uint64_t input_fields[4 * 5];
-    uint8_t input_bits[108];
-    size_t bits_capacity = 8 * 108;
-    uint8_t input_bytes[268] = { 0 };
+    uint64_t input_fields[LIMBS_PER_FIELD * (msg->fields_capacity + 2)];
+    uint8_t input_bits[msg->bits_capacity/8 + SCALAR_BYTES + 1];
+    size_t bits_capacity = 8 * sizeof(input_bits);
+    uint8_t input_bytes[sizeof(input_fields) + sizeof(input_bits)];
+    bzero(input_bytes, sizeof(input_bytes));
 
     input.fields = input_fields;
     input.bits = input_bits;
@@ -772,7 +773,7 @@ void message_derive(Scalar out, const Keypair *kp, const ROInput *msg, uint8_t n
 
     size_t input_size_in_bits = input.bits_len + FIELD_SIZE_IN_BITS * input.fields_len;
     size_t input_size_in_bytes = (input_size_in_bits + 7) / 8;
-    assert(input_size_in_bytes <= 268);
+    assert(input_size_in_bytes <= sizeof(input_bytes));
     roinput_to_bytes(input_bytes, &input);
 
     uint8_t hash_out[32];
@@ -796,12 +797,11 @@ void message_hash(Scalar out, const Affine *pub, const Field rx, const ROInput *
 {
     ROInput input;
 
-    uint64_t input_fields[4 * 6];
-    uint8_t input_bits[75];
+    uint64_t input_fields[LIMBS_PER_FIELD * (msg->fields_capacity + 3)];
+    uint8_t input_bits[msg->bits_capacity/8];
 
-    input.fields_capacity = 6;
-    input.bits_capacity = 8 * 75;
-    assert(msg->fields_len <= 6);
+    input.fields_capacity = msg->fields_capacity + 3;
+    input.bits_capacity = 8 * sizeof(input_bits);
     assert(msg->bits_len <= input.bits_capacity);
 
     input.fields = input_fields;
@@ -820,8 +820,7 @@ void message_hash(Scalar out, const Affine *pub, const Field rx, const ROInput *
     State pos;
     poseidon_copy_state(pos, network_id == MAINNET_ID ? MAINNET_INIT_STATE : TESTNET_INIT_STATE);
 
-    // over-estimate of field elements needed
-    uint64_t packed_elements[20 * LIMBS_PER_FIELD];
+    uint64_t packed_elements[(input.fields_capacity + sizeof(input_bits)/FIELD_BYTES) * LIMBS_PER_FIELD];
     size_t packed_elements_len = roinput_to_fields(packed_elements, &input);
 
     poseidon_update(pos, packed_elements, packed_elements_len);
@@ -1025,4 +1024,52 @@ void sign(Signature *sig, const Keypair *kp, const Transaction *transaction, uin
     Scalar e_priv;
     scalar_mul(e_priv, e, kp->priv);
     scalar_add(sig->s, k, e_priv);
+}
+
+bool sign_message(Signature *sig, const Keypair *kp, const uint8_t *msg, const size_t len, const uint8_t network_id)
+{
+  // Convert msg bytes to ROInput
+  uint64_t input_fields[4 * 0]; // Messages are stored in bits (no fields)
+  uint8_t input_bits[len];
+  ROInput input;
+  input.fields_capacity = 0;
+  input.bits_capacity = 8 * len;
+  input.fields = input_fields;
+  input.bits = input_bits;
+  input.fields_len = 0;
+  input.bits_len = 0;
+
+  roinput_add_bytes(&input, msg, len);
+
+  Scalar k;
+  message_derive(k, kp, &input, network_id);
+
+  uint64_t k_nonzero;
+  fiat_pasta_fq_nonzero(&k_nonzero, k);
+  if (! k_nonzero) {
+    return false;
+  }
+
+  // r = k*g
+  Affine r;
+  affine_scalar_mul(&r, k, &AFFINE_ONE);
+
+  field_copy(sig->rx, r.x);
+
+  if (is_odd(r.y)) {
+      // negate (k = -k)
+      Scalar tmp;
+      fiat_pasta_fq_copy(tmp, k);
+      scalar_negate(k, tmp);
+  }
+
+  Scalar e;
+  message_hash(e, &kp->pub, r.x, &input, network_id);
+
+  // s = k + e*sk
+  Scalar e_priv;
+  scalar_mul(e_priv, e, kp->priv);
+  scalar_add(sig->s, k, e_priv);
+
+  return true;
 }
