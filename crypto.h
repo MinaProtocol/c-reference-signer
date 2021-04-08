@@ -44,8 +44,8 @@ typedef uint8_t Memo[MEMO_BYTES];
 typedef bool Tag[3];
 #define TAG_BITS 3
 
-#define MAINNET_ID 1
-#define TESTNET_ID 0
+#define TESTNET_ID 0x00
+#define MAINNET_ID 0x01
 
 typedef uint8_t* PackedBits;
 
@@ -119,6 +119,7 @@ void field_add(Field c, const Field a, const Field b);
 void field_copy(Field c, const Field a);
 void field_mul(Field c, const Field a, const Field b);
 void field_sq(Field c, const Field a);
+void field_pow(Field c, const Field a, const uint8_t b);
 
 bool affine_eq(const Affine *p, const Affine *q);
 void affine_add(Affine *r, const Affine *p, const Affine *q);

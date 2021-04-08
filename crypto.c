@@ -26,6 +26,7 @@
 
 #include <assert.h>
 #include <inttypes.h>
+#include <math.h>
 
 #include "crypto.h"
 #include "utils.h"
@@ -35,18 +36,6 @@
 #include "blake2.h"
 #include "libbase58.h"
 #include "sha256.h"
-
-State MAINNET_INIT_STATE = {
-  {0xc21e7c13c81e894, 0x710189d783717f27, 0x7825ac132f04e050, 0x6fd140c96a52f28},
-  {0x25611817aeec99d8, 0x24e1697f7e63d4b4, 0x13dabc79c3b8bba9, 0x232c7b1c778fbd08},
-  {0x70bff575f3c9723c, 0x96818a1c2ae2e7ef, 0x2eec149ee0aacb0c, 0xecf6e7248a576ad}
-};
-
-State TESTNET_INIT_STATE = {
-  { 0x67097c15f1a46d64, 0xc76fd61db3c20173, 0xbdf9f393b220a17, 0x10c0e352378ab1fd} ,
-  { 0x57dbbe3a20c2a32, 0x486f1b93a41e04c7, 0xa21341e97da1bdc1, 0x24a095608e4bf2e9},
-  { 0xd4559679d839ff92, 0x577371d495f4d71b, 0x3227c7db607b3ded, 0x2ca212648a12291e}
-};
 
 // a = 0, b = 5
 static const Field GROUP_COEFF_B = {
@@ -109,6 +98,26 @@ void field_mul(Field c, const Field a, const Field b)
 void field_sq(Field c, const Field a)
 {
     fiat_pasta_fp_square(c, a);
+}
+
+void field_pow(Field c, const Field a, const uint8_t b)
+{
+    field_copy(c, FIELD_ONE);
+
+    if (b == 0) {
+      return;
+    }
+
+    Field tmp;
+    for (size_t i = log2(b) + 1; i > 0; i--) {
+        field_copy(tmp, c);
+        field_sq(c, tmp);
+
+        if (b & (1 << (i - 1))) {
+            field_copy(tmp, c);
+            field_mul(c, tmp, a);
+        }
+    }
 }
 
 void field_inv(Field c, const Field a)
@@ -817,14 +826,14 @@ void message_hash(Scalar out, const Affine *pub, const Field rx, const ROInput *
     roinput_add_field(&input, rx);
 
     // Initial sponge state
-    State pos;
-    poseidon_copy_state(pos, network_id == MAINNET_ID ? MAINNET_INIT_STATE : TESTNET_INIT_STATE);
+    PoseidonCtx ctx;
+    poseidon_init(&ctx, POSEIDON_3W, network_id);
 
     uint64_t packed_elements[(input.fields_capacity + sizeof(input_bits)/FIELD_BYTES) * LIMBS_PER_FIELD];
     size_t packed_elements_len = roinput_to_fields(packed_elements, &input);
 
-    poseidon_update(pos, packed_elements, packed_elements_len);
-    poseidon_digest(out, pos);
+    poseidon_update(&ctx, packed_elements, packed_elements_len);
+    poseidon_digest(out, &ctx);
 }
 
 #define FULL_BITS_LEN (FEE_BITS + TOKEN_ID_BITS + 1 + NONCE_BITS + GLOBAL_SLOT_BITS + MEMO_BITS + TAG_BITS + 1 + 1 + TOKEN_ID_BITS + AMOUNT_BITS + 1)

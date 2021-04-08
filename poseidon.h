@@ -20,12 +20,25 @@
 
 #include "crypto.h"
 
-#define ROUNDS 64
-#define FULL_ROUNDS 63
-#define SPONGE_SIZE 3
+#define POSEIDON_3W 0x00
+#define POSEIDON_5W 0x01
 
-typedef Field State[SPONGE_SIZE];
+#define MAX_SPONGE_WIDTH 5
 
-void poseidon_update(State s, const uint64_t *input, size_t len);
-void poseidon_digest(Scalar out, const State s);
-void poseidon_copy_state(State out, const State s);
+typedef Field State[MAX_SPONGE_WIDTH];
+
+typedef struct poseidon_context_t {
+    State  state;
+    size_t sponge_width;
+    size_t sponge_rate;
+    size_t full_rounds;
+    uint8_t sbox_alpha;
+    uint8_t type;
+    const Field ***round_keys;
+    const Field **mds_matrix;
+    void (*permutation)(struct poseidon_context_t *);
+} PoseidonCtx;
+
+bool poseidon_init(PoseidonCtx *ctx, const uint8_t type, const uint8_t network_id);
+void poseidon_update(PoseidonCtx *ctx, const uint64_t *input, size_t len);
+void poseidon_digest(Scalar out, const PoseidonCtx *ctx);
