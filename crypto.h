@@ -115,11 +115,14 @@ void scalar_add(Scalar c, const Scalar a, const Scalar b);
 void scalar_mul(Scalar c, const Scalar a, const Scalar b);
 void scalar_negate(Scalar b, const Scalar a);
 
-void field_add(Field c, const Field a, const Field b);
 void field_copy(Field c, const Field a);
+bool field_is_odd(const Field y);
+void field_add(Field c, const Field a, const Field b);
 void field_mul(Field c, const Field a, const Field b);
 void field_sq(Field c, const Field a);
 void field_pow(Field c, const Field a, const uint8_t b);
+
+void group_one(Group *a);
 
 bool affine_eq(const Affine *p, const Affine *q);
 void affine_add(Affine *r, const Affine *p, const Affine *q);
@@ -131,9 +134,9 @@ void generate_keypair(Keypair *keypair, uint32_t account);
 void generate_pubkey(Affine *pub_key, const Scalar priv_key);
 bool generate_address(char *address, size_t len, const Affine *pub_key);
 
-void sign(Signature *sig, const Keypair *kp, const Transaction *transaction, uint8_t network_id);
+void sign(Signature *sig, const Keypair *kp, const Transaction *transaction, const uint8_t network_id);
 bool sign_message(Signature *sig, const Keypair *kp, const uint8_t *msg, const size_t len, const uint8_t network_id);
-bool verify(Signature *sig, const Compressed *pub, const Transaction *transaction, uint8_t network_id);
+bool verify(Signature *sig, const Compressed *pub, const Transaction *transaction, const uint8_t network_id);
 
 void compress(Compressed *compressed, const Affine *pt);
 

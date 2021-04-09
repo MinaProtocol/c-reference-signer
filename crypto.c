@@ -54,7 +54,6 @@ static const Field FIELD_FOUR = {
 static const Field FIELD_EIGHT = {
   0x7387134cffffffe1, 0xd973797adfadd5a8, 0xfffffffffffffffb, 0x3fffffffffffffff
 };
-
 static const Field FIELD_ZERO = { 0, 0, 0, 0 };
 static const Scalar SCALAR_ZERO = { 0, 0, 0, 0 };
 
@@ -75,14 +74,21 @@ static const Affine AFFINE_ONE = {
     }
 };
 
-void field_add(Field c, const Field a, const Field b)
-{
-    fiat_pasta_fp_add(c, a, b);
-}
-
 void field_copy(Field c, const Field a)
 {
     fiat_pasta_fp_copy(c, a);
+}
+
+bool field_is_odd(const Field y)
+{
+    uint64_t tmp[4];
+    fiat_pasta_fp_from_montgomery(tmp, y);
+    return tmp[0] & 1;
+}
+
+void field_add(Field c, const Field a, const Field b)
+{
+    fiat_pasta_fp_add(c, a, b);
 }
 
 void field_sub(Field c, const Field a, const Field b)
@@ -254,6 +260,11 @@ void affine_from_group(Affine *r, const Group *p)
     field_mul(zi3, zi2, zi);    // 1/Z^3
     field_mul(r->x, p->X, zi2); // X/Z^2
     field_mul(r->y, p->Y, zi3); // Y/Z^3
+}
+
+void group_one(Group *a)
+{
+  affine_to_group(a, &AFFINE_ONE);
 }
 
 // https://www.hyperelliptic.org/EFD/g1p/auto-code/shortw/jacobian-0/doubling/dbl-2009-l.op3
@@ -481,13 +492,6 @@ bool affine_is_on_curve(const Affine *p)
     Group gp;
     affine_to_group(&gp, p);
     return group_is_on_curve(&gp);
-}
-
-bool is_odd(const Field y)
-{
-    uint64_t tmp[4];
-    fiat_pasta_fp_from_montgomery(tmp, y);
-    return tmp[0] & 1;
 }
 
 void roinput_print_fields(const ROInput *input) {
@@ -732,7 +736,7 @@ bool generate_address(char *address, const size_t len, const Affine *pub_key)
     fiat_pasta_fp_from_montgomery((uint64_t *)&raw.payload[2], pub_key->x);
 
     // y-coordinate parity
-    raw.payload[34] = is_odd(pub_key->y);
+    raw.payload[34] = field_is_odd(pub_key->y);
 
     uint8_t hash1[SHA256_BLOCK_SIZE];
     sha256_hash(&raw, 36, hash1, sizeof(hash1));
@@ -802,7 +806,7 @@ void message_derive(Scalar out, const Keypair *kp, const ROInput *msg, uint8_t n
     fiat_pasta_fq_to_montgomery(out, tmp);
 }
 
-void message_hash(Scalar out, const Affine *pub, const Field rx, const ROInput *msg, uint8_t network_id)
+void message_hash(Scalar out, const Affine *pub, const Field rx, const ROInput *msg, const uint8_t hash_type, const uint8_t network_id)
 {
     ROInput input;
 
@@ -940,7 +944,7 @@ bool verify(Signature *sig, const Compressed *pub_compressed, const Transaction 
     decompress(&pub, pub_compressed);
 
     Scalar e;
-    message_hash(e, &pub, sig->rx, &input, network_id);
+    message_hash(e, &pub, sig->rx, &input, POSEIDON_3W, network_id);
 
     Group g;
     affine_to_group(&g, &AFFINE_ONE);
@@ -1019,7 +1023,7 @@ void sign(Signature *sig, const Keypair *kp, const Transaction *transaction, uin
 
     field_copy(sig->rx, r.x);
 
-    if (is_odd(r.y)) {
+    if (field_is_odd(r.y)) {
         // negate (k = -k)
         Scalar tmp;
         fiat_pasta_fq_copy(tmp, k);
@@ -1027,7 +1031,7 @@ void sign(Signature *sig, const Keypair *kp, const Transaction *transaction, uin
     }
 
     Scalar e;
-    message_hash(e, &kp->pub, r.x, &input, network_id);
+    message_hash(e, &kp->pub, r.x, &input, POSEIDON_3W, network_id);
 
     // s = k + e*sk
     Scalar e_priv;
@@ -1065,7 +1069,7 @@ bool sign_message(Signature *sig, const Keypair *kp, const uint8_t *msg, const s
 
   field_copy(sig->rx, r.x);
 
-  if (is_odd(r.y)) {
+  if (field_is_odd(r.y)) {
       // negate (k = -k)
       Scalar tmp;
       fiat_pasta_fq_copy(tmp, k);
@@ -1073,7 +1077,7 @@ bool sign_message(Signature *sig, const Keypair *kp, const uint8_t *msg, const s
   }
 
   Scalar e;
-  message_hash(e, &kp->pub, r.x, &input, network_id);
+  message_hash(e, &kp->pub, r.x, &input, POSEIDON_3W, network_id);
 
   // s = k + e*sk
   Scalar e_priv;

@@ -11,6 +11,7 @@
 #define SPONGE_RATE_3W  2
 #define SBOX_ALPHA_3W   5
 
+// Round constants
 static const Field _round_keys_3w[ROUND_COUNT_3W][SPONGE_WIDTH_3W] =
 {
   {
@@ -537,15 +538,17 @@ static const Field _mds_matrix_3w[SPONGE_WIDTH_3W][SPONGE_WIDTH_3W] =
 };
 
 // initial sponge state testnet
-static const Field _testnet_iv_3w[SPONGE_WIDTH_3W] = {
-    { 0x67097c15f1a46d64, 0xc76fd61db3c20173, 0xbdf9f393b220a17, 0x10c0e352378ab1fd },
-    { 0x57dbbe3a20c2a32, 0x486f1b93a41e04c7, 0xa21341e97da1bdc1, 0x24a095608e4bf2e9 },
-    { 0xd4559679d839ff92, 0x577371d495f4d71b, 0x3227c7db607b3ded, 0x2ca212648a12291e }
+static const Field _testnet_iv_3w[SPONGE_WIDTH_3W] =
+{
+  {0x67097c15f1a46d64, 0xc76fd61db3c20173, 0xbdf9f393b220a17, 0x10c0e352378ab1fd},
+  {0x57dbbe3a20c2a32, 0x486f1b93a41e04c7, 0xa21341e97da1bdc1, 0x24a095608e4bf2e9},
+  {0xd4559679d839ff92, 0x577371d495f4d71b, 0x3227c7db607b3ded, 0x2ca212648a12291e}
 };
 
 // Initial sponge state mainnet
-static const Field _mainnet_iv_3w[SPONGE_WIDTH_3W] = {
-    { 0xc21e7c13c81e894, 0x710189d783717f27, 0x7825ac132f04e050, 0x6fd140c96a52f28 },
-    { 0x25611817aeec99d8, 0x24e1697f7e63d4b4, 0x13dabc79c3b8bba9, 0x232c7b1c778fbd08 },
-    { 0x70bff575f3c9723c, 0x96818a1c2ae2e7ef, 0x2eec149ee0aacb0c, 0xecf6e7248a576ad }
+static const Field _mainnet_iv_3w[SPONGE_WIDTH_3W] =
+{
+  {0xc21e7c13c81e894, 0x710189d783717f27, 0x7825ac132f04e050, 0x6fd140c96a52f28},
+  {0x25611817aeec99d8, 0x24e1697f7e63d4b4, 0x13dabc79c3b8bba9, 0x232c7b1c778fbd08},
+  {0x70bff575f3c9723c, 0x96818a1c2ae2e7ef, 0x2eec149ee0aacb0c, 0xecf6e7248a576ad}
 };
