@@ -178,7 +178,7 @@ void poseidon_update(PoseidonCtx *ctx, const uint64_t *input, size_t len)
     if (ctx->sponge_rate * groups < len) {
         for (size_t j = 0; j < len - ctx->sponge_rate * groups; j++) {
             field_copy(tmp, ctx->state[j]);
-            field_add(ctx->state[j], tmp, input + LIMBS_PER_FIELD * (2 * groups + j));
+            field_add(ctx->state[j], tmp, input + LIMBS_PER_FIELD * (ctx->sponge_rate * groups + j));
         }
 
         ctx->permutation(ctx);
