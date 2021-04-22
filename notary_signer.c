@@ -49,7 +49,7 @@ bool notary_sign(Signature *sig, const Keypair *kp, const uint8_t *msg, const si
   }
 
   Scalar e;
-  message_hash(e, &kp->pub, r.x, &input, POSEIDON_3W, network_id);
+  message_hash(e, &kp->pub, r.x, &input, POSEIDON_5W, network_id);
 
   // s = k + e*sk
   Scalar e_priv;
@@ -78,7 +78,7 @@ bool notary_verify(Signature *sig, const Compressed *pub_compressed, const uint8
   decompress(&pub, pub_compressed);
 
   Scalar e;
-  message_hash(e, &pub, sig->rx, &input, POSEIDON_3W, network_id);
+  message_hash(e, &pub, sig->rx, &input, POSEIDON_5W, network_id);
 
   Group g;
   group_one(&g);
