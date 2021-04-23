@@ -6,10 +6,13 @@
 #include "pasta_fp.h"
 #include "pasta_fq.h"
 #include "crypto.h"
+#include "poseidon.h"
 #include "base10.h"
 #include "utils.h"
 #include "sha256.h"
 #include "curve_checks.h"
+
+#define ARRAY_LEN(x) (sizeof(x)/sizeof(x[0]))
 
 #define DEFAULT_TOKEN_ID 1
 static bool _verbose;
@@ -219,8 +222,7 @@ bool check_get_address(const char *account_number,
 }
 
 bool check_sign_message(const char *signer_priv_hex, const uint8_t *msg, const size_t len,
-                        const uint8_t network_id, const char *target)
-{
+                        const uint8_t network_id, const char *target) {
   Scalar priv_key;
   if (!privkey_from_hex(priv_key, signer_priv_hex)) {
     return false;
@@ -257,8 +259,7 @@ bool check_sign_tx(const char *account_number,
                    const char *memo,
                    bool delegation,
                    const char *signature,
-                   uint8_t network_id)
-{
+                   uint8_t network_id) {
   char target[129];
   if (!sign_transaction(target, sizeof(target),
                         account_number,
@@ -277,8 +278,7 @@ bool check_sign_tx(const char *account_number,
    return strcmp(signature, target) == 0;
 }
 
-void print_scalar_as_cstruct(const Scalar x)
-{
+void print_scalar_as_cstruct(const Scalar x) {
   printf("        { ");
   for (size_t i = 0; i < sizeof(Scalar)/sizeof(x[0]); i++) {
     printf("0x%016lx, ", x[i]);
@@ -286,8 +286,7 @@ void print_scalar_as_cstruct(const Scalar x)
   printf("},\n");
 }
 
-void print_affine_as_cstruct(const Affine *a)
-{
+void print_affine_as_cstruct(const Affine *a) {
   printf("        {\n");
   printf("            { ");
   for (size_t i = 0; i < sizeof(Field)/sizeof(a->x[0]); i++) {
@@ -302,8 +301,7 @@ void print_affine_as_cstruct(const Affine *a)
   printf("\n        },\n");
 }
 
-void print_scalar_as_ledger_cstruct(const Scalar x)
-{
+void print_scalar_as_ledger_cstruct(const Scalar x) {
   uint64_t tmp[4];
   uint8_t *p = (uint8_t *)tmp;
 
@@ -318,8 +316,7 @@ void print_scalar_as_ledger_cstruct(const Scalar x)
   printf("\n        },\n");
 }
 
-void print_affine_as_ledger_cstruct(const Affine *a)
-{
+void print_affine_as_ledger_cstruct(const Affine *a) {
   uint64_t tmp[4];
   uint8_t *p = (uint8_t *)tmp;
 
@@ -1885,6 +1882,70 @@ int main(int argc, char* argv[]) {
     assert(check_sign_message("164244176fddb5d769b7de2027469d027ad428fadcc0c02396e6280142efb718",
                               bytes, sizeof(bytes), MAINNET_ID,
                               "36ce251e0b246af3fbe1f1eacffcdde3bfcf5053d9baff48acd785352180bc68025b928ba14e1680a2d1cab013958fbf4661e5c314ee6dcf5c37742524ef5039"));
+  }
+
+  // poseidon tests
+  {
+      PoseidonCtx ctx;
+      poseidon_init(&ctx, POSEIDON_3W, NULLNET_ID);
+      Field elements[1] = {
+          {0x47187fecbf726861, 0xb2a5a57187baf1d1, 0x049e0f1315247d81, 0x1276cef18d3f2a88}
+      };
+      for (size_t i = 0; i < ARRAY_LEN(elements); i++) {
+          fiat_pasta_fp_to_montgomery(elements[i], elements[i]);
+      }
+      poseidon_update(&ctx, elements, ARRAY_LEN(elements));
+
+      Scalar out;
+      poseidon_digest(out, &ctx);
+
+      Scalar target = {0xf3eb3d1417523abf, 0xeee57792bb273d07, 0x776c0b1ce4bad9e5, 0x1450c2da2a737fc3};
+      fiat_pasta_fq_to_montgomery(target, target);
+      assert(memcmp(out, target, sizeof(out)) == 0);
+  }
+
+  {
+      PoseidonCtx ctx;
+      poseidon_init(&ctx, POSEIDON_3W, NULLNET_ID);
+      Field elements[2] = {
+          {0x09409b2c065207ae, 0xe446c4f2d72552be, 0xcf92397ffb628078, 0x0590e7a4b7de334a},
+          {0x2ac6b89957fd3114, 0x6a14b01f3987e59e, 0x7d28b6469319f32e, 0x0ae79043108233d3}
+      };
+      for (size_t i = 0; i < ARRAY_LEN(elements); i++) {
+          fiat_pasta_fp_to_montgomery(elements[i], elements[i]);
+      }
+      poseidon_update(&ctx, elements, ARRAY_LEN(elements));
+
+      Scalar out;
+      poseidon_digest(out, &ctx);
+
+      Scalar target = {0xe64eccc70da91d4c, 0x5d047b3533963a38, 0x14bb20b81f4f89dc, 0x014c99bbb112dcbc};
+      fiat_pasta_fq_to_montgomery(target, target);
+      assert(memcmp(out, target, sizeof(out)) == 0);
+  }
+
+  {
+      PoseidonCtx ctx;
+      poseidon_init(&ctx, POSEIDON_3W, NULLNET_ID);
+      Field elements[6] = {
+          {0x4618b840ee8b6a75, 0x9cef04d622f15b3b, 0x4549401a1f8d44c9, 0x3d1bd914030b5929},
+          {0x33056bdcd587e7e8, 0x13f52e1be37ddb92, 0xa664a94e7c098886, 0x34faaf6e5fd9828e},
+          {0x1ec31f9269b2a109, 0x4b9942ba132332d5, 0xe5a9693f8a44ff0b, 0x2e4975307038208b},
+          {0xedbeeea6513acf5f, 0x0ee3b2c7c5fb2f17, 0x36dd5c17cf593510, 0x357d2281aeea7c21},
+          {0x7a8d15e587110ae4, 0x5091df19c4cfc86d, 0xb18915e7380f91aa, 0x271a893ea31d9a2c},
+          {0x6037a01e3873690c, 0x5115d763d47dcce1, 0xcfe78d3916508fc1, 0x1279f6ec0d1fad11}
+      };
+      for (size_t i = 0; i < ARRAY_LEN(elements); i++) {
+          fiat_pasta_fp_to_montgomery(elements[i], elements[i]);
+      }
+      poseidon_update(&ctx, elements, ARRAY_LEN(elements));
+
+      Scalar out;
+      poseidon_digest(out, &ctx);
+
+      Scalar target = {0x4e0a065baa662e2b, 0x1f18e68970cbf81c, 0x20e4cab4a9da56ff, 0x2bf12f80a8df096a};
+      fiat_pasta_fq_to_montgomery(target, target);
+      assert(memcmp(out, target, sizeof(out)) == 0);
   }
 
   // Perform crypto tests

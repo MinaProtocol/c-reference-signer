@@ -139,11 +139,14 @@ bool poseidon_init(PoseidonCtx *ctx, const uint8_t type, const uint8_t network_i
       return false;
     }
 
-    if (type != POSEIDON_3W && type != POSEIDON_5W) {
+    if (type != POSEIDON_3W &&
+        type != POSEIDON_5W) {
         return false;
     }
 
-    if (network_id != TESTNET_ID && network_id != MAINNET_ID) {
+    if (network_id != TESTNET_ID &&
+        network_id != MAINNET_ID &&
+        network_id != NULLNET_ID) {
         return false;
     }
 
@@ -155,13 +158,18 @@ bool poseidon_init(PoseidonCtx *ctx, const uint8_t type, const uint8_t network_i
     ctx->mds_matrix   = _poseidon_config[type].mds_matrix;
     ctx->permutation  = _poseidon_config[type].permutation;
 
-    memcpy(ctx->state, _poseidon_config[type].sponge_iv[network_id],
-           SPONGE_BYTES(ctx->sponge_width));
+    if (network_id != NULLNET_ID) {
+        memcpy(ctx->state, _poseidon_config[type].sponge_iv[network_id],
+               SPONGE_BYTES(ctx->sponge_width));
+    }
+    else {
+        bzero(ctx->state, SPONGE_BYTES(ctx->sponge_width));
+    }
 
     return true;
 }
 
-void poseidon_update(PoseidonCtx *ctx, const uint64_t *input, size_t len)
+void poseidon_update(PoseidonCtx *ctx, const Field *input, size_t len)
 {
     Field tmp;
     size_t groups = len / ctx->sponge_rate;
@@ -169,7 +177,7 @@ void poseidon_update(PoseidonCtx *ctx, const uint64_t *input, size_t len)
     for (size_t i = 0; i < groups; ++i) {
         for (size_t j = 0; j < ctx->sponge_rate; j++) {
             field_copy(tmp, ctx->state[j]);
-            field_add(ctx->state[j], tmp, input + LIMBS_PER_FIELD * (2 * i + j));
+            field_add(ctx->state[j], tmp, input[2*i + j]);
         }
 
         ctx->permutation(ctx);
@@ -178,7 +186,7 @@ void poseidon_update(PoseidonCtx *ctx, const uint64_t *input, size_t len)
     if (ctx->sponge_rate * groups < len) {
         for (size_t j = 0; j < len - ctx->sponge_rate * groups; j++) {
             field_copy(tmp, ctx->state[j]);
-            field_add(ctx->state[j], tmp, input + LIMBS_PER_FIELD * (ctx->sponge_rate * groups + j));
+            field_add(ctx->state[j], tmp, input[ctx->sponge_rate * groups + j]);
         }
 
         ctx->permutation(ctx);
@@ -189,6 +197,7 @@ void poseidon_update(PoseidonCtx *ctx, const uint64_t *input, size_t len)
 void poseidon_digest(Scalar out, const PoseidonCtx *ctx) {
     uint64_t tmp[4];
     fiat_pasta_fp_from_montgomery(tmp, ctx->state[0]);
+
     // since the difference in modulus between the two fields is < 2^125,
     // with high probability, a random value from one field will fit in the
     // other field.

@@ -46,6 +46,7 @@ typedef bool Tag[3];
 
 #define TESTNET_ID 0x00
 #define MAINNET_ID 0x01
+#define NULLNET_ID 0xff
 
 typedef uint8_t* PackedBits;
 
