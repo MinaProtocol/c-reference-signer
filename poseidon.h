@@ -29,6 +29,7 @@ typedef Field State[MAX_SPONGE_WIDTH];
 
 typedef struct poseidon_context_t {
     State  state;
+    size_t absorbed;
     size_t sponge_width;
     size_t sponge_rate;
     size_t full_rounds;
@@ -41,4 +42,4 @@ typedef struct poseidon_context_t {
 
 bool poseidon_init(PoseidonCtx *ctx, const uint8_t type, const uint8_t network_id);
 void poseidon_update(PoseidonCtx *ctx, const Field *input, size_t len);
-void poseidon_digest(Scalar out, const PoseidonCtx *ctx);
+void poseidon_digest(Scalar out, PoseidonCtx *ctx);

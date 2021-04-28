@@ -836,7 +836,7 @@ void message_hash(Scalar out, const Affine *pub, const Field rx, const ROInput *
     uint64_t packed_elements[(input.fields_capacity + sizeof(input_bits)/FIELD_BYTES) * LIMBS_PER_FIELD];
     size_t packed_elements_len = roinput_to_fields(packed_elements, &input);
 
-    poseidon_update(&ctx, packed_elements, packed_elements_len);
+    poseidon_update(&ctx, (Field *)packed_elements, packed_elements_len);
     poseidon_digest(out, &ctx);
 }
 

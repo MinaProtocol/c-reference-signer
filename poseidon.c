@@ -41,7 +41,7 @@ static void matrix_mul(State s1, const Field **m, const size_t width)
 }
 
 // 3-wire poseidon permutation function
-static void _permutation_3w(PoseidonCtx *ctx)
+static void permutation_3w(PoseidonCtx *ctx)
 {
     Field tmp;
 
@@ -70,7 +70,7 @@ static void _permutation_3w(PoseidonCtx *ctx)
     }
 }
 
-static void _permutation_5w(PoseidonCtx *ctx)
+static void permutation_5w(PoseidonCtx *ctx)
 {
     Field tmp;
 
@@ -109,13 +109,13 @@ struct poseidon_config_t {
         .sponge_rate  = SPONGE_RATE_3W,
         .full_rounds  = ROUND_COUNT_3W - 1,
         .sbox_alpha   = SBOX_ALPHA_3W,
-        .round_keys   = (const Field ***)_round_keys_3w,
-        .mds_matrix   = (const Field **)_mds_matrix_3w,
+        .round_keys   = (const Field ***)round_keys_3w,
+        .mds_matrix   = (const Field **)mds_matrix_3w,
         .sponge_iv    = {
-            (const Field *)_testnet_iv_3w,
-            (const Field *)_mainnet_iv_3w
+            (const Field *)testnet_iv_3w,
+            (const Field *)mainnet_iv_3w
         },
-        .permutation = _permutation_3w
+        .permutation = permutation_3w
     },
     // 0x01 - POSEIDON_5W
     {
@@ -123,13 +123,13 @@ struct poseidon_config_t {
         .sponge_rate  = SPONGE_RATE_5W,
         .full_rounds  = ROUND_COUNT_5W,
         .sbox_alpha   = SBOX_ALPHA_5W,
-        .round_keys   = (const Field ***)_round_keys_5w,
-        .mds_matrix   = (const Field **)_mds_matrix_5w,
+        .round_keys   = (const Field ***)round_keys_5w,
+        .mds_matrix   = (const Field **)mds_matrix_5w,
         .sponge_iv    = {
-            (const Field *)_testnet_iv_5w,
-            (const Field *)_mainnet_iv_5w
+            (const Field *)testnet_iv_5w,
+            (const Field *)mainnet_iv_5w
         },
-        .permutation = _permutation_5w
+        .permutation = permutation_5w
     }
 };
 
@@ -166,35 +166,29 @@ bool poseidon_init(PoseidonCtx *ctx, const uint8_t type, const uint8_t network_i
         bzero(ctx->state, SPONGE_BYTES(ctx->sponge_width));
     }
 
+    ctx->absorbed = 0;
+
     return true;
 }
 
 void poseidon_update(PoseidonCtx *ctx, const Field *input, size_t len)
 {
     Field tmp;
-    size_t groups = len / ctx->sponge_rate;
-
-    for (size_t i = 0; i < groups; ++i) {
-        for (size_t j = 0; j < ctx->sponge_rate; j++) {
-            field_copy(tmp, ctx->state[j]);
-            field_add(ctx->state[j], tmp, input[2*i + j]);
+    for (size_t i = 0; i < len; i++) {
+        if (ctx->absorbed == ctx->sponge_rate) {
+            ctx->permutation(ctx);
+            ctx->absorbed = 0;
         }
-
-        ctx->permutation(ctx);
-    }
-
-    if (ctx->sponge_rate * groups < len) {
-        for (size_t j = 0; j < len - ctx->sponge_rate * groups; j++) {
-            field_copy(tmp, ctx->state[j]);
-            field_add(ctx->state[j], tmp, input[ctx->sponge_rate * groups + j]);
-        }
-
-        ctx->permutation(ctx);
+        field_copy(tmp, ctx->state[ctx->absorbed]);
+        field_add(ctx->state[ctx->absorbed], tmp, input[i]);
+        ctx->absorbed++;
     }
 }
 
 // Squeezing poseidon returns the first element of its current state.
-void poseidon_digest(Scalar out, const PoseidonCtx *ctx) {
+void poseidon_digest(Scalar out, PoseidonCtx *ctx) {
+    ctx->permutation(ctx);
+
     uint64_t tmp[4];
     fiat_pasta_fp_from_montgomery(tmp, ctx->state[0]);
 

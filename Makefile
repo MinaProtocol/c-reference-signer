@@ -16,7 +16,7 @@ reference_signer: $(OBJS) reference_signer.c
 	$(CC) -Wall -Werror $@.c -o $@ $(OBJS) -lm
 
 .PRECIOUS: unit_tests
-unit_tests: $(OBJS) unit_tests.c poseidon_params_3w.h poseidon_params_5w.h
+unit_tests: $(OBJS) *.c *.h
 	$(CC) -Wall -Werror $@.c -o $@ $(OBJS) -lm
 	@./$@
 

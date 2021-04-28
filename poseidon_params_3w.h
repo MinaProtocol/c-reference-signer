@@ -12,7 +12,7 @@
 #define SBOX_ALPHA_3W   5
 
 // Round constants
-static const Field _round_keys_3w[ROUND_COUNT_3W][SPONGE_WIDTH_3W] =
+static const Field round_keys_3w[ROUND_COUNT_3W][SPONGE_WIDTH_3W] =
 {
   {
     {0xd2425a07cfec91d, 0x6130240fd42af5be, 0x3fb56f00f649325, 0x107d26d6fefb125f},
@@ -518,7 +518,7 @@ static const Field _round_keys_3w[ROUND_COUNT_3W][SPONGE_WIDTH_3W] =
 };
 
 // MDS matrix
-static const Field _mds_matrix_3w[SPONGE_WIDTH_3W][SPONGE_WIDTH_3W] =
+static const Field mds_matrix_3w[SPONGE_WIDTH_3W][SPONGE_WIDTH_3W] =
 {
   {
     {0x32f4f94379d14f6, 0x666eef381fb1d4b0, 0xd760525c85a9299a, 0x70288de13f861f},
@@ -538,7 +538,7 @@ static const Field _mds_matrix_3w[SPONGE_WIDTH_3W][SPONGE_WIDTH_3W] =
 };
 
 // initial sponge state testnet
-static const Field _testnet_iv_3w[SPONGE_WIDTH_3W] =
+static const Field testnet_iv_3w[SPONGE_WIDTH_3W] =
 {
   {0x67097c15f1a46d64, 0xc76fd61db3c20173, 0xbdf9f393b220a17, 0x10c0e352378ab1fd},
   {0x57dbbe3a20c2a32, 0x486f1b93a41e04c7, 0xa21341e97da1bdc1, 0x24a095608e4bf2e9},
@@ -546,7 +546,7 @@ static const Field _testnet_iv_3w[SPONGE_WIDTH_3W] =
 };
 
 // Initial sponge state mainnet
-static const Field _mainnet_iv_3w[SPONGE_WIDTH_3W] =
+static const Field mainnet_iv_3w[SPONGE_WIDTH_3W] =
 {
   {0xc21e7c13c81e894, 0x710189d783717f27, 0x7825ac132f04e050, 0x6fd140c96a52f28},
   {0x25611817aeec99d8, 0x24e1697f7e63d4b4, 0x13dabc79c3b8bba9, 0x232c7b1c778fbd08},

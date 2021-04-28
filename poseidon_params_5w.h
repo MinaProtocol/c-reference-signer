@@ -1,3 +1,7 @@
+#pragma once
+
+#include "crypto.h"
+
 //
 // 5-wire Poseidon hash function parameters
 //
@@ -8,7 +12,7 @@
 #define SBOX_ALPHA_5W   7
 
 // Round constants
-static const Field _round_keys_5w[ROUND_COUNT_5W][SPONGE_WIDTH_5W] =
+static const Field round_keys_5w[ROUND_COUNT_5W][SPONGE_WIDTH_5W] =
 {
   {
     {0x6342181358ae2f17, 0x5a321a1614499301, 0x4359bc382232456a, 0x3c06cd69a97c028b},
@@ -384,7 +388,7 @@ static const Field _round_keys_5w[ROUND_COUNT_5W][SPONGE_WIDTH_5W] =
 };
 
 // MDS matrix
-static const Field _mds_matrix_5w[SPONGE_WIDTH_5W][SPONGE_WIDTH_5W] =
+static const Field mds_matrix_5w[SPONGE_WIDTH_5W][SPONGE_WIDTH_5W] =
 {
   {
     {0x32f4f94379d14f6, 0x666eef381fb1d4b0, 0xd760525c85a9299a, 0x70288de13f861f},
@@ -424,7 +428,7 @@ static const Field _mds_matrix_5w[SPONGE_WIDTH_5W][SPONGE_WIDTH_5W] =
 };
 
 // Initial sponge state testnet
-static const Field _testnet_iv_5w[SPONGE_WIDTH_5W] =
+static const Field testnet_iv_5w[SPONGE_WIDTH_5W] =
 {
   {0x63d01a5eb2171352, 0xa156f498468c138a, 0x6863ea2849c3a1a2, 0x9d3a988f1f410b1},
   {0x7102a042f3032c7a, 0xec792d3bae28c836, 0x56ca8c6f048bc984, 0x1219b5fcf34e0a1f},
@@ -434,7 +438,7 @@ static const Field _testnet_iv_5w[SPONGE_WIDTH_5W] =
 };
 
 // Initial sponge state mainnet
-static const Field _mainnet_iv_5w[SPONGE_WIDTH_5W] =
+static const Field mainnet_iv_5w[SPONGE_WIDTH_5W] =
 {
   {0x1bc46288607092ee, 0x679d1013fcd27af4, 0x2302588441a00b35, 0x52aa4180a0e1d3f},
   {0xf44d99f5d1788e7c, 0xa808f4bc1c5e8caa, 0xd3fd8806f5f3de6, 0x12ad0b5be60d68f1},
