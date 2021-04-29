@@ -14,7 +14,8 @@
 #define BIP32_PATH_LEN 5
 #define BIP32_HARDENED_OFFSET 0x80000000
 
-#define FIELD_BYTES   32
+#define FIELD_BYTES  32
+#define SCALAR_BYTES 32
 
 #define LIMBS_PER_FIELD 4
 #define LIMBS_PER_SCALAR 4
@@ -43,8 +44,9 @@ typedef uint8_t Memo[MEMO_BYTES];
 typedef bool Tag[3];
 #define TAG_BITS 3
 
-#define MAINNET_ID 1
-#define TESTNET_ID 0
+#define TESTNET_ID 0x00
+#define MAINNET_ID 0x01
+#define NULLNET_ID 0xff
 
 typedef uint8_t* PackedBits;
 
@@ -114,10 +116,12 @@ void scalar_add(Scalar c, const Scalar a, const Scalar b);
 void scalar_mul(Scalar c, const Scalar a, const Scalar b);
 void scalar_negate(Scalar b, const Scalar a);
 
-void field_add(Field c, const Field a, const Field b);
 void field_copy(Field c, const Field a);
+bool field_is_odd(const Field y);
+void field_add(Field c, const Field a, const Field b);
 void field_mul(Field c, const Field a, const Field b);
 void field_sq(Field c, const Field a);
+void field_pow(Field c, const Field a, const uint8_t b);
 
 bool affine_eq(const Affine *p, const Affine *q);
 void affine_add(Affine *r, const Affine *p, const Affine *q);
@@ -129,8 +133,8 @@ void generate_keypair(Keypair *keypair, uint32_t account);
 void generate_pubkey(Affine *pub_key, const Scalar priv_key);
 bool generate_address(char *address, size_t len, const Affine *pub_key);
 
-void sign(Signature *sig, const Keypair *kp, const Transaction *transaction, uint8_t network_id);
-bool verify(Signature *sig, const Compressed *pub, const Transaction *transaction, uint8_t network_id);
+void sign(Signature *sig, const Keypair *kp, const Transaction *transaction, const uint8_t network_id);
+bool verify(Signature *sig, const Compressed *pub, const Transaction *transaction, const uint8_t network_id);
 
 void compress(Compressed *compressed, const Affine *pt);
 

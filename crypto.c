@@ -26,6 +26,7 @@
 
 #include <assert.h>
 #include <inttypes.h>
+#include <math.h>
 
 #include "crypto.h"
 #include "utils.h"
@@ -35,18 +36,6 @@
 #include "blake2.h"
 #include "libbase58.h"
 #include "sha256.h"
-
-State MAINNET_INIT_STATE = {
-  {0xc21e7c13c81e894, 0x710189d783717f27, 0x7825ac132f04e050, 0x6fd140c96a52f28},
-  {0x25611817aeec99d8, 0x24e1697f7e63d4b4, 0x13dabc79c3b8bba9, 0x232c7b1c778fbd08},
-  {0x70bff575f3c9723c, 0x96818a1c2ae2e7ef, 0x2eec149ee0aacb0c, 0xecf6e7248a576ad}
-};
-
-State TESTNET_INIT_STATE = {
-  { 0x67097c15f1a46d64, 0xc76fd61db3c20173, 0xbdf9f393b220a17, 0x10c0e352378ab1fd} ,
-  { 0x57dbbe3a20c2a32, 0x486f1b93a41e04c7, 0xa21341e97da1bdc1, 0x24a095608e4bf2e9},
-  { 0xd4559679d839ff92, 0x577371d495f4d71b, 0x3227c7db607b3ded, 0x2ca212648a12291e}
-};
 
 // a = 0, b = 5
 static const Field GROUP_COEFF_B = {
@@ -65,7 +54,6 @@ static const Field FIELD_FOUR = {
 static const Field FIELD_EIGHT = {
   0x7387134cffffffe1, 0xd973797adfadd5a8, 0xfffffffffffffffb, 0x3fffffffffffffff
 };
-
 static const Field FIELD_ZERO = { 0, 0, 0, 0 };
 static const Scalar SCALAR_ZERO = { 0, 0, 0, 0 };
 
@@ -86,14 +74,21 @@ static const Affine AFFINE_ONE = {
     }
 };
 
-void field_add(Field c, const Field a, const Field b)
-{
-    fiat_pasta_fp_add(c, a, b);
-}
-
 void field_copy(Field c, const Field a)
 {
     fiat_pasta_fp_copy(c, a);
+}
+
+bool field_is_odd(const Field y)
+{
+    uint64_t tmp[4];
+    fiat_pasta_fp_from_montgomery(tmp, y);
+    return tmp[0] & 1;
+}
+
+void field_add(Field c, const Field a, const Field b)
+{
+    fiat_pasta_fp_add(c, a, b);
 }
 
 void field_sub(Field c, const Field a, const Field b)
@@ -109,6 +104,26 @@ void field_mul(Field c, const Field a, const Field b)
 void field_sq(Field c, const Field a)
 {
     fiat_pasta_fp_square(c, a);
+}
+
+void field_pow(Field c, const Field a, const uint8_t b)
+{
+    field_copy(c, FIELD_ONE);
+
+    if (b == 0) {
+      return;
+    }
+
+    Field tmp;
+    for (size_t i = log2(b) + 1; i > 0; i--) {
+        field_copy(tmp, c);
+        field_sq(c, tmp);
+
+        if (b & (1 << (i - 1))) {
+            field_copy(tmp, c);
+            field_mul(c, tmp, a);
+        }
+    }
 }
 
 void field_inv(Field c, const Field a)
@@ -245,6 +260,11 @@ void affine_from_group(Affine *r, const Group *p)
     field_mul(zi3, zi2, zi);    // 1/Z^3
     field_mul(r->x, p->X, zi2); // X/Z^2
     field_mul(r->y, p->Y, zi3); // Y/Z^3
+}
+
+void group_one(Group *a)
+{
+    affine_to_group(a, &AFFINE_ONE);
 }
 
 // https://www.hyperelliptic.org/EFD/g1p/auto-code/shortw/jacobian-0/doubling/dbl-2009-l.op3
@@ -472,13 +492,6 @@ bool affine_is_on_curve(const Affine *p)
     Group gp;
     affine_to_group(&gp, p);
     return group_is_on_curve(&gp);
-}
-
-bool is_odd(const Field y)
-{
-    uint64_t tmp[4];
-    fiat_pasta_fp_from_montgomery(tmp, y);
-    return tmp[0] & 1;
 }
 
 void roinput_print_fields(const ROInput *input) {
@@ -723,7 +736,7 @@ bool generate_address(char *address, const size_t len, const Affine *pub_key)
     fiat_pasta_fp_from_montgomery((uint64_t *)&raw.payload[2], pub_key->x);
 
     // y-coordinate parity
-    raw.payload[34] = is_odd(pub_key->y);
+    raw.payload[34] = field_is_odd(pub_key->y);
 
     uint8_t hash1[SHA256_BLOCK_SIZE];
     sha256_hash(&raw, 36, hash1, sizeof(hash1));
@@ -747,10 +760,11 @@ bool generate_address(char *address, const size_t len, const Affine *pub_key)
 void message_derive(Scalar out, const Keypair *kp, const ROInput *msg, uint8_t network_id)
 {
     ROInput input;
-    uint64_t input_fields[4 * 5];
-    uint8_t input_bits[108];
-    size_t bits_capacity = 8 * 108;
-    uint8_t input_bytes[268] = { 0 };
+    uint64_t input_fields[LIMBS_PER_FIELD * (msg->fields_capacity + 2)];
+    uint8_t input_bits[msg->bits_capacity/8 + SCALAR_BYTES + 1];
+    size_t bits_capacity = 8 * sizeof(input_bits);
+    uint8_t input_bytes[sizeof(input_fields) + sizeof(input_bits)];
+    bzero(input_bytes, sizeof(input_bytes));
 
     input.fields = input_fields;
     input.bits = input_bits;
@@ -772,7 +786,7 @@ void message_derive(Scalar out, const Keypair *kp, const ROInput *msg, uint8_t n
 
     size_t input_size_in_bits = input.bits_len + FIELD_SIZE_IN_BITS * input.fields_len;
     size_t input_size_in_bytes = (input_size_in_bits + 7) / 8;
-    assert(input_size_in_bytes <= 268);
+    assert(input_size_in_bytes <= sizeof(input_bytes));
     roinput_to_bytes(input_bytes, &input);
 
     uint8_t hash_out[32];
@@ -792,16 +806,15 @@ void message_derive(Scalar out, const Keypair *kp, const ROInput *msg, uint8_t n
     fiat_pasta_fq_to_montgomery(out, tmp);
 }
 
-void message_hash(Scalar out, const Affine *pub, const Field rx, const ROInput *msg, uint8_t network_id)
+void message_hash(Scalar out, const Affine *pub, const Field rx, const ROInput *msg, const uint8_t hash_type, const uint8_t network_id)
 {
     ROInput input;
 
-    uint64_t input_fields[4 * 6];
-    uint8_t input_bits[75];
+    uint64_t input_fields[LIMBS_PER_FIELD * (msg->fields_capacity + 3)];
+    uint8_t input_bits[msg->bits_capacity/8];
 
-    input.fields_capacity = 6;
-    input.bits_capacity = 8 * 75;
-    assert(msg->fields_len <= 6);
+    input.fields_capacity = msg->fields_capacity + 3;
+    input.bits_capacity = 8 * sizeof(input_bits);
     assert(msg->bits_len <= input.bits_capacity);
 
     input.fields = input_fields;
@@ -817,15 +830,14 @@ void message_hash(Scalar out, const Affine *pub, const Field rx, const ROInput *
     roinput_add_field(&input, rx);
 
     // Initial sponge state
-    State pos;
-    poseidon_copy_state(pos, network_id == MAINNET_ID ? MAINNET_INIT_STATE : TESTNET_INIT_STATE);
+    PoseidonCtx ctx;
+    poseidon_init(&ctx, POSEIDON_3W, network_id);
 
-    // over-estimate of field elements needed
-    uint64_t packed_elements[20 * LIMBS_PER_FIELD];
+    uint64_t packed_elements[(input.fields_capacity + sizeof(input_bits)/FIELD_BYTES) * LIMBS_PER_FIELD];
     size_t packed_elements_len = roinput_to_fields(packed_elements, &input);
 
-    poseidon_update(pos, packed_elements, packed_elements_len);
-    poseidon_digest(out, pos);
+    poseidon_update(&ctx, (Field *)packed_elements, packed_elements_len);
+    poseidon_digest(out, &ctx);
 }
 
 #define FULL_BITS_LEN (FEE_BITS + TOKEN_ID_BITS + 1 + NONCE_BITS + GLOBAL_SLOT_BITS + MEMO_BITS + TAG_BITS + 1 + 1 + TOKEN_ID_BITS + AMOUNT_BITS + 1)
@@ -932,7 +944,7 @@ bool verify(Signature *sig, const Compressed *pub_compressed, const Transaction 
     decompress(&pub, pub_compressed);
 
     Scalar e;
-    message_hash(e, &pub, sig->rx, &input, network_id);
+    message_hash(e, &pub, sig->rx, &input, POSEIDON_3W, network_id);
 
     Group g;
     affine_to_group(&g, &AFFINE_ONE);
@@ -1011,7 +1023,7 @@ void sign(Signature *sig, const Keypair *kp, const Transaction *transaction, uin
 
     field_copy(sig->rx, r.x);
 
-    if (is_odd(r.y)) {
+    if (field_is_odd(r.y)) {
         // negate (k = -k)
         Scalar tmp;
         fiat_pasta_fq_copy(tmp, k);
@@ -1019,7 +1031,7 @@ void sign(Signature *sig, const Keypair *kp, const Transaction *transaction, uin
     }
 
     Scalar e;
-    message_hash(e, &kp->pub, r.x, &input, network_id);
+    message_hash(e, &kp->pub, r.x, &input, POSEIDON_3W, network_id);
 
     // s = k + e*sk
     Scalar e_priv;

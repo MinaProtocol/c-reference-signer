@@ -15,7 +15,7 @@ reference_signer: $(OBJS) reference_signer.c
 	$(CC) -Wall -Werror $@.c -o $@ $(OBJS) -lm
 
 .PRECIOUS: unit_tests
-unit_tests: $(OBJS) unit_tests.c
+unit_tests: $(OBJS) *.c *.h
 	$(CC) -Wall -Werror $@.c -o $@ $(OBJS) -lm
 	@./$@
 
