@@ -831,7 +831,7 @@ void message_hash(Scalar out, const Affine *pub, const Field rx, const ROInput *
 
     // Initial sponge state
     PoseidonCtx ctx;
-    poseidon_init(&ctx, POSEIDON_3W, network_id);
+    poseidon_init(&ctx, hash_type, network_id);
 
     uint64_t packed_elements[(input.fields_capacity + sizeof(input_bits)/FIELD_BYTES) * LIMBS_PER_FIELD];
     size_t packed_elements_len = roinput_to_fields(packed_elements, &input);
