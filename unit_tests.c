@@ -11,6 +11,7 @@
 #include "utils.h"
 #include "sha256.h"
 #include "curve_checks.h"
+#include "notary_signer.h"
 
 #define ARRAY_LEN(x) (sizeof(x)/sizeof(x[0]))
 
@@ -248,6 +249,34 @@ bool check_sign_tx(const char *account_number,
    }
 
    return strcmp(signature, target) == 0;
+}
+
+bool check_notary_sign(const char *signer_priv_hex, const uint8_t *msg, const size_t len,
+                       const uint8_t network_id, const char *target) {
+  Scalar priv_key;
+  if (!privkey_from_hex(priv_key, signer_priv_hex)) {
+    return false;
+  }
+
+  Keypair kp;
+  scalar_copy(kp.priv, priv_key);
+  generate_pubkey(&kp.pub, priv_key);
+
+  Signature sig;
+  if (!notary_sign(&sig, &kp, msg, len, network_id)) {
+     return false;
+  }
+
+  char signature[129];
+  sig_to_hex(signature, sizeof(signature), sig);
+
+  if (strcmp(signature, target) != 0) {
+    fprintf(stderr, "signature mismatch: expected=%s, got=%s\n",
+            target, signature);
+    return false;
+  }
+
+  return true;
 }
 
 void print_scalar_as_cstruct(const Scalar x) {
@@ -938,6 +967,39 @@ int main(int argc, char* argv[]) {
       {5634255577245254270ULL, 14395092878371292826ULL, 16978463518186927900ULL, 178730575833426237ULL}
     )
   );
+
+  // notary sign
+
+  assert(check_notary_sign("164244176fddb5d769b7de2027469d027ad428fadcc0c02396e6280142efb718",
+                           0, 0, MAINNET_ID,
+                           "2f55b066d17000d46f1e99557b478cf69bdef36c70cec0187dcb0eedf0957d6536ff7daab757e227bcb4821f6b5e637735dbc73bc91f33f8d61f6a8e990c4f04"));
+
+  assert(check_notary_sign("164244176fddb5d769b7de2027469d027ad428fadcc0c02396e6280142efb718",
+                           (uint8_t *)"Hello notary signing!", 22, MAINNET_ID,
+                           "2ee5c1976745a48e6ad7077d6a32092d71e13946703cb6d3b1e02d1b3752bda4000a355301ea8173bfa51e827e88c5326e0ae56b78d325753179c80595eedd7a"));
+
+  {
+    uint8_t bytes[] = { 0x01, 0xfe, 0x74 };
+    assert(check_notary_sign("164244176fddb5d769b7de2027469d027ad428fadcc0c02396e6280142efb718",
+                             bytes, sizeof(bytes), MAINNET_ID,
+                             "197c2fa73e4b4acd47ada0c97ff6c2cbda162dc812e0156c441f4b32993e482235afb9eba72887e12a821c42580e65cfedaf930085455f6948338a52f5229444"));
+  }
+
+  {
+    uint8_t bytes[] = {
+      0xaf, 0xac, 0xfa, 0xca, 0x12, 0xbc, 0x09, 0x00,
+      0x5d, 0x99, 0x01, 0xd4, 0xe9, 0x9b, 0xce, 0xee,
+      0x1d, 0x22, 0x46, 0x3f, 0xb7, 0x23, 0x9d, 0xb3,
+      0x2a, 0x2c, 0xe9, 0xd7, 0xdf, 0xfe, 0x57, 0xb4,
+      0xc1, 0x15, 0x44, 0x2c, 0x20, 0xa1, 0x00, 0x01,
+      0xb1, 0x7f, 0x7b, 0x73, 0x1c, 0x57, 0x16, 0x1a,
+      0x2e, 0x01, 0x3c, 0x50, 0x15, 0x1c, 0x54, 0xf2,
+      0x45, 0x3b, 0x78, 0x45, 0x4e, 0xbc, 0x71, 0x83
+    };
+    assert(check_notary_sign("164244176fddb5d769b7de2027469d027ad428fadcc0c02396e6280142efb718",
+                             bytes, sizeof(bytes), TESTNET_ID,
+                             "22d3fdec26741a9958e6e35dc1a276231fa088def377617064cf5d0b62f64b761e9c1d38cdd44c1f53f654ce5a6aa99c6eeaac3202cba6c00cbba57c190c3621"));
+  }
 
   // Perform crypto tests
   if (!curve_checks()) {
