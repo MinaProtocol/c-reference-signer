@@ -8,8 +8,6 @@
 #include <stdbool.h>
 
 #define INVALID_PARAMETER 1
-#define os_memcmp memcmp
-#define os_memcpy memcpy
 
 #define BIP32_PATH_LEN 5
 #define BIP32_HARDENED_OFFSET 0x80000000
