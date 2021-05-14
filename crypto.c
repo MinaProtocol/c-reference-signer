@@ -235,22 +235,22 @@ unsigned int group_is_on_curve(const Group *p)
 void affine_to_group(Group *r, const Affine *p)
 {
     if (field_eq(p->x, FIELD_ZERO) && field_eq(p->y, FIELD_ZERO)) {
-        os_memcpy(r->X, FIELD_ZERO, FIELD_BYTES);
-        os_memcpy(r->Y, FIELD_ONE, FIELD_BYTES);
-        os_memcpy(r->Z, FIELD_ZERO, FIELD_BYTES);
+        memcpy(r->X, FIELD_ZERO, FIELD_BYTES);
+        memcpy(r->Y, FIELD_ONE, FIELD_BYTES);
+        memcpy(r->Z, FIELD_ZERO, FIELD_BYTES);
         return;
     }
 
-    os_memcpy(r->X, p->x, FIELD_BYTES);
-    os_memcpy(r->Y, p->y, FIELD_BYTES);
-    os_memcpy(r->Z, FIELD_ONE, FIELD_BYTES);
+    memcpy(r->X, p->x, FIELD_BYTES);
+    memcpy(r->Y, p->y, FIELD_BYTES);
+    memcpy(r->Z, FIELD_ONE, FIELD_BYTES);
 }
 
 void affine_from_group(Affine *r, const Group *p)
 {
     if (field_eq(p->Z, FIELD_ZERO)) {
-        os_memcpy(r->x, FIELD_ZERO, FIELD_BYTES);
-        os_memcpy(r->y, FIELD_ZERO, FIELD_BYTES);
+        memcpy(r->x, FIELD_ZERO, FIELD_BYTES);
+        memcpy(r->y, FIELD_ZERO, FIELD_BYTES);
         return;
     }
 

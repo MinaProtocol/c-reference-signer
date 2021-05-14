@@ -37,7 +37,7 @@ bool curve_checks(void)
             THROW(INVALID_PARAMETER);
         }
         // Test target check: a3 == T0
-        if (os_memcmp(&a3, &T[i][0], sizeof(a3)) != 0) {
+        if (memcmp(&a3, &T[i][0], sizeof(a3)) != 0) {
             THROW(INVALID_PARAMETER);
         }
 
@@ -53,7 +53,7 @@ bool curve_checks(void)
             THROW(INVALID_PARAMETER);
         }
         // Test target check: a3 == T1
-        if (os_memcmp(&a3, &T[i][1], sizeof(a3)) != 0) {
+        if (memcmp(&a3, &T[i][1], sizeof(a3)) != 0) {
             THROW(INVALID_PARAMETER);
         }
 
@@ -69,7 +69,7 @@ bool curve_checks(void)
             THROW(INVALID_PARAMETER);
         }
         // Test target check: a3 == T2
-        if (os_memcmp(&a3, &T[i][2], sizeof(a3)) != 0) {
+        if (memcmp(&a3, &T[i][2], sizeof(a3)) != 0) {
             THROW(INVALID_PARAMETER);
         }
 
@@ -85,7 +85,7 @@ bool curve_checks(void)
             THROW(INVALID_PARAMETER);
         }
         // Test target check: a3 == T3
-        if (os_memcmp(&a3, &T[i][3], sizeof(a3)) != 0) {
+        if (memcmp(&a3, &T[i][3], sizeof(a3)) != 0) {
             THROW(INVALID_PARAMETER);
         }
 
@@ -102,7 +102,7 @@ bool curve_checks(void)
             THROW(INVALID_PARAMETER);
         }
         // Test target check: a4 == T4
-        if (os_memcmp(&a4, &T[i][4], sizeof(a4)) != 0) {
+        if (memcmp(&a4, &T[i][4], sizeof(a4)) != 0) {
             THROW(INVALID_PARAMETER);
         }
     }
