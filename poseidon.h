@@ -22,6 +22,7 @@
 
 #define POSEIDON_3W 0x00
 #define POSEIDON_5W 0x01
+#define POSEIDON_3  0x02
 
 #define MAX_SPONGE_WIDTH 5
 
