@@ -14,6 +14,7 @@
 #include "poseidon.h"
 #include "poseidon_params_3w.h"
 #include "poseidon_params_5w.h"
+#include "poseidon_params_3.h"
 
 #define SPONGE_BYTES(sponge_width) (sizeof(Field)*sponge_width)
 #define ROUND_KEY(ctx, round, idx) *(Field *)(ctx->round_keys + (round*ctx->sponge_width + idx)*LIMBS_PER_FIELD)
@@ -70,7 +71,7 @@ static void permutation_3w(PoseidonCtx *ctx)
     }
 }
 
-static void permutation_5w(PoseidonCtx *ctx)
+static void permutation(PoseidonCtx *ctx)
 {
     Field tmp;
 
@@ -102,7 +103,7 @@ struct poseidon_config_t {
     const Field **mds_matrix;
     const Field *sponge_iv[2];
     void (*permutation)(PoseidonCtx *);
-} _poseidon_config[2] = {
+} _poseidon_config[3] = {
     // 0x00 - POSEIDON_3W
     {
         .sponge_width = SPONGE_WIDTH_3W,
@@ -129,7 +130,21 @@ struct poseidon_config_t {
             (const Field *)testnet_iv_5w,
             (const Field *)mainnet_iv_5w
         },
-        .permutation = permutation_5w
+        .permutation = permutation
+    },
+    // 0x02 - POSEIDON_3
+    {
+        .sponge_width = SPONGE_WIDTH_3,
+        .sponge_rate  = SPONGE_RATE_3,
+        .full_rounds  = ROUND_COUNT_3,
+        .sbox_alpha   = SBOX_ALPHA_3,
+        .round_keys   = (const Field ***)round_keys_3,
+        .mds_matrix   = (const Field **)mds_matrix_3,
+        .sponge_iv    = {
+            (const Field *)testnet_iv_3,
+            (const Field *)mainnet_iv_3
+        },
+        .permutation = permutation
     }
 };
 
@@ -140,7 +155,8 @@ bool poseidon_init(PoseidonCtx *ctx, const uint8_t type, const uint8_t network_i
     }
 
     if (type != POSEIDON_3W &&
-        type != POSEIDON_5W) {
+        type != POSEIDON_5W &&
+        type != POSEIDON_3) {
         return false;
     }
 
