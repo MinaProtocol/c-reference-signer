@@ -91,22 +91,6 @@ typedef struct keypair_t {
     Scalar priv;
 } Keypair;
 
-typedef struct roinput_t {
-  uint64_t* fields;
-  PackedBits bits;
-  size_t fields_len;
-  size_t fields_capacity;
-  size_t bits_len;
-  size_t bits_capacity;
-} ROInput;
-
-void roinput_add_field(ROInput *input, const Field a);
-void roinput_add_scalar(ROInput *input, const Scalar a);
-void roinput_add_bit(ROInput *input, bool b);
-void roinput_add_bytes(ROInput *input, const uint8_t *bytes, size_t len);
-void roinput_add_uint32(ROInput *input, const uint32_t x);
-void roinput_add_uint64(ROInput *input, const uint64_t x);
-
 void scalar_copy(Scalar b, const Scalar a);
 void scalar_from_words(Scalar a, const uint64_t words[4]);
 bool scalar_eq(const Scalar a, const Scalar b);

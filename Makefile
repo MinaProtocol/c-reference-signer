@@ -5,6 +5,7 @@ OBJS = base10.o \
 	blake2b-ref.o \
 	sha256.o \
 	crypto.o \
+	random_oracle_input.o \
 	notary_signer.o \
 	pasta_fp.o \
 	pasta_fq.o \
