@@ -20,8 +20,6 @@
 //         GROUP_ORDER   = 28948022309329048855892746252171976963363056481941647379679742748393362948097 (Fq, 0x94)
 //         FIELD_MODULUS = 28948022309329048855892746252171976963363056481941560715954676764349967630337 (Fp, 0x4c)
 
-// #include <assert.h>
-
 #define THROW exit
 
 #include <assert.h>
@@ -36,7 +34,6 @@
 #include "blake2.h"
 #include "libbase58.h"
 #include "sha256.h"
-
 #include "random_oracle_input.h"
 
 // a = 0, b = 5
@@ -589,7 +586,7 @@ bool generate_address(char *address, const size_t len, const Affine *pub_key)
 void message_derive(Scalar out, const Keypair *kp, const ROInput *msg, uint8_t network_id)
 {
     ROInput input;
-    uint64_t input_fields[LIMBS_PER_FIELD * (msg->fields_capacity + 2)];
+    Field input_fields[msg->fields_capacity + 2];
     uint8_t input_bits[msg->bits_capacity/8 + SCALAR_BYTES + 1];
     size_t bits_capacity = 8 * sizeof(input_bits);
     uint8_t input_bytes[sizeof(input_fields) + sizeof(input_bits)];
@@ -598,8 +595,8 @@ void message_derive(Scalar out, const Keypair *kp, const ROInput *msg, uint8_t n
     input.fields = input_fields;
     input.bits = input_bits;
 
-    for (size_t i = 0; i < msg->fields_len * LIMBS_PER_FIELD; ++i) {
-      input.fields[i] = msg->fields[i];
+    for (size_t i = 0; i < msg->fields_len; ++i) {
+      field_copy(input.fields[i], msg->fields[i]);
     }
     memcpy(input.bits, msg->bits, sizeof(uint8_t) * ((msg->bits_len + 7) / 8));
 
@@ -639,7 +636,7 @@ void message_hash(Scalar out, const Affine *pub, const Field rx, const ROInput *
 {
     ROInput input;
 
-    uint64_t input_fields[LIMBS_PER_FIELD * (msg->fields_capacity + 3)];
+    Field input_fields[msg->fields_capacity + 3];
     uint8_t input_bits[msg->bits_capacity/8];
 
     input.fields_capacity = msg->fields_capacity + 3;
@@ -668,9 +665,6 @@ void message_hash(Scalar out, const Affine *pub, const Field rx, const ROInput *
     poseidon_update(&ctx, (Field *)packed_elements, packed_elements_len);
     poseidon_digest(out, &ctx);
 }
-
-#define FULL_BITS_LEN (FEE_BITS + TOKEN_ID_BITS + 1 + NONCE_BITS + GLOBAL_SLOT_BITS + MEMO_BITS + TAG_BITS + 1 + 1 + TOKEN_ID_BITS + AMOUNT_BITS + 1)
-#define FULL_BITS_BYTES ((FULL_BITS_LEN + 7) / 8)
 
 void compress(Compressed *compressed, const Affine *pt) {
   fiat_pasta_fp_copy(compressed->x, pt->x);
@@ -725,55 +719,13 @@ void read_public_key_compressed(Compressed *out, const char *pubkeyBase58) {
   out->is_odd = (bool) pubkeyBytes[offset + 32];
 }
 
-void prepare_memo(uint8_t *out, const char *s) {
-  size_t len = strlen(s);
-  out[0] = 1;
-  out[1] = len; // length
-  for (size_t i = 0; i < len; ++i) {
-    out[2 + i] = s[i];
-  }
-  for (size_t i = 2 + len; i < MEMO_BYTES; ++i) {
-    out[i] = 0;
-  }
-}
-
-bool verify(Signature *sig, const Compressed *pub_compressed, const Transaction *transaction, uint8_t network_id)
+bool verify(Signature *sig, const Compressed *pub_compressed, const ROInput *input, uint8_t network_id)
 {
-    // Convert transaction to ROInput
-    uint64_t input_fields[4 * 3];
-    uint8_t input_bits[FULL_BITS_BYTES];
-    ROInput input;
-    input.fields_capacity = 3;
-    input.bits_capacity = 8 * FULL_BITS_BYTES;
-    input.fields = input_fields;
-    input.bits = input_bits;
-    input.fields_len = 0;
-    input.bits_len = 0;
-
-    roinput_add_field(&input, transaction->fee_payer_pk.x);
-    roinput_add_field(&input, transaction->source_pk.x);
-    roinput_add_field(&input, transaction->receiver_pk.x);
-
-    roinput_add_uint64(&input, transaction->fee);
-    roinput_add_uint64(&input, transaction->fee_token);
-    roinput_add_bit(&input, transaction->fee_payer_pk.is_odd);
-    roinput_add_uint32(&input, transaction->nonce);
-    roinput_add_uint32(&input, transaction->valid_until);
-    roinput_add_bytes(&input, transaction->memo, MEMO_BYTES);
-    for (size_t i = 0; i < 3; ++i) {
-      roinput_add_bit(&input, transaction->tag[i]);
-    }
-    roinput_add_bit(&input, transaction->source_pk.is_odd);
-    roinput_add_bit(&input, transaction->receiver_pk.is_odd);
-    roinput_add_uint64(&input, transaction->token_id);
-    roinput_add_uint64(&input, transaction->amount);
-    roinput_add_bit(&input, transaction->token_locked);
-
     Affine pub;
     decompress(&pub, pub_compressed);
 
     Scalar e;
-    message_hash(e, &pub, sig->rx, &input, POSEIDON_3W, network_id);
+    message_hash(e, &pub, sig->rx, input, POSEIDON_3W, network_id);
 
     Group g;
     affine_to_group(&g, &AFFINE_ONE);
@@ -805,40 +757,10 @@ bool verify(Signature *sig, const Compressed *pub_compressed, const Transaction 
     return (ry_even && fiat_pasta_fp_equals(raff.x, sig->rx));
 }
 
-void sign(Signature *sig, const Keypair *kp, const Transaction *transaction, uint8_t network_id)
+void sign(Signature *sig, const Keypair *kp, const ROInput *input, uint8_t network_id)
 {
-    // Convert transaction to ROInput
-    uint64_t input_fields[4 * 3];
-    uint8_t input_bits[FULL_BITS_BYTES];
-    ROInput input;
-    input.fields_capacity = 3;
-    input.bits_capacity = 8 * FULL_BITS_BYTES;
-    input.fields = input_fields;
-    input.bits = input_bits;
-    input.fields_len = 0;
-    input.bits_len = 0;
-
-    roinput_add_field(&input, transaction->fee_payer_pk.x);
-    roinput_add_field(&input, transaction->source_pk.x);
-    roinput_add_field(&input, transaction->receiver_pk.x);
-
-    roinput_add_uint64(&input, transaction->fee);
-    roinput_add_uint64(&input, transaction->fee_token);
-    roinput_add_bit(&input, transaction->fee_payer_pk.is_odd);
-    roinput_add_uint32(&input, transaction->nonce);
-    roinput_add_uint32(&input, transaction->valid_until);
-    roinput_add_bytes(&input, transaction->memo, MEMO_BYTES);
-    for (size_t i = 0; i < 3; ++i) {
-      roinput_add_bit(&input, transaction->tag[i]);
-    }
-    roinput_add_bit(&input, transaction->source_pk.is_odd);
-    roinput_add_bit(&input, transaction->receiver_pk.is_odd);
-    roinput_add_uint64(&input, transaction->token_id);
-    roinput_add_uint64(&input, transaction->amount);
-    roinput_add_bit(&input, transaction->token_locked);
-
     Scalar k;
-    message_derive(k, kp, &input, network_id);
+    message_derive(k, kp, input, network_id);
 
     uint64_t k_nonzero;
     fiat_pasta_fq_nonzero(&k_nonzero, k);
@@ -860,7 +782,7 @@ void sign(Signature *sig, const Keypair *kp, const Transaction *transaction, uin
     }
 
     Scalar e;
-    message_hash(e, &kp->pub, r.x, &input, POSEIDON_3W, network_id);
+    message_hash(e, &kp->pub, r.x, input, POSEIDON_3W, network_id);
 
     // s = k + e*sk
     Scalar e_priv;

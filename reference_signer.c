@@ -1,12 +1,14 @@
 #include <stdio.h>
+#include <sys/resource.h>
+#include <inttypes.h>
+
 #include "pasta_fp.h"
 #include "pasta_fq.h"
 #include "crypto.h"
 #include "base10.h"
 #include "utils.h"
-
-#include <sys/resource.h>
-#include <inttypes.h>
+#include "transaction.h"
+#include "random_oracle_input.h"
 
 #define MAINNET 0
 
@@ -50,7 +52,7 @@ int main(int argc, char* argv[]) {
   Transaction txn;
 
   char* actual_memo = "this is a memo";
-  prepare_memo(txn.memo, actual_memo);
+  transaction_prepare_memo(txn.memo, actual_memo);
 
   char* fee_payer_str = "B62qiy32p8kAKnny8ZFwoMhYpBppM1DWVCqAPBYNcXnsAHhnfAAuXgg";
   char* source_str = "B62qiy32p8kAKnny8ZFwoMhYpBppM1DWVCqAPBYNcXnsAHhnfAAuXgg";
@@ -79,11 +81,15 @@ int main(int argc, char* argv[]) {
   Compressed pub_compressed;
   compress(&pub_compressed, &kp.pub);
 
+  Field input_fields[3];
+  uint8_t input_bits[TX_BITSTRINGS_BYTES];
+  ROInput roinput = roinput_create(input_fields, input_bits);
+  transaction_to_roinput(&roinput, &txn);
   Signature sig;
   uint8_t network_id = MAINNET ? MAINNET_ID : TESTNET_ID;
-  sign(&sig, &kp, &txn, network_id);
+  sign(&sig, &kp, &roinput, network_id);
 
-  if (!verify(&sig, &pub_compressed, &txn, network_id)) {
+  if (!verify(&sig, &pub_compressed, &roinput, network_id)) {
     exit(1);
   }
 
@@ -159,7 +165,7 @@ int main(int argc, char* argv[]) {
   read_public_key_compressed(&del.fee_payer_pk, del_fee_payer_str);
   del.nonce = 10;
   del.valid_until = 4000;
-  prepare_memo(del.memo, del_actual_memo);
+  transaction_prepare_memo(del.memo, del_actual_memo);
   del.tag[0] = 0;
   del.tag[1] = 0;
   del.tag[2] = 1;
@@ -169,9 +175,11 @@ int main(int argc, char* argv[]) {
   del.token_locked = false;
   del.amount = 0;
 
-  sign(&sig, &kp, &del, network_id);
+  transaction_to_roinput(&roinput, &del);
 
-  if (!verify(&sig, &pub_compressed, &del, network_id)) {
+  sign(&sig, &kp, &roinput, network_id);
+
+  if (!verify(&sig, &pub_compressed, &roinput, network_id)) {
     exit(1);
   }
 

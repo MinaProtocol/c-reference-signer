@@ -6,14 +6,13 @@
 #include "pasta_fp.h"
 #include "pasta_fq.h"
 #include "crypto.h"
+#include "transaction.h"
 #include "poseidon.h"
 #include "base10.h"
 #include "utils.h"
 #include "sha256.h"
 #include "curve_checks.h"
 #include "notary_signer.h"
-
-#define ARRAY_LEN(x) (sizeof(x)/sizeof(x[0]))
 
 #define DEFAULT_TOKEN_ID 1
 static bool _verbose;
@@ -126,7 +125,7 @@ bool sign_transaction(char *signature, const size_t len,
     return false;
   }
 
-  prepare_memo(txn.memo, memo);
+  transaction_prepare_memo(txn.memo, memo);
 
   Scalar priv_key;
   if (!privkey_from_hex(priv_key, sender_priv_hex)) {
@@ -170,10 +169,15 @@ bool sign_transaction(char *signature, const size_t len,
   Compressed pub_compressed;
   compress(&pub_compressed, &kp.pub);
 
-  Signature sig;
-  sign(&sig, &kp, &txn, network_id);
+  Field input_fields[3];
+  uint8_t input_bits[TX_BITSTRINGS_BYTES];
+  ROInput roinput = roinput_create(input_fields, input_bits);
+  transaction_to_roinput(&roinput, &txn);
 
-  if (!verify(&sig, &pub_compressed, &txn, network_id)) {
+  Signature sig;
+  sign(&sig, &kp, &roinput, network_id);
+
+  if (!verify(&sig, &pub_compressed, &roinput, network_id)) {
     return false;
   }
 

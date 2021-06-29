@@ -1,3 +1,4 @@
+#include "random_oracle_input.h"
 #include "notary_signer.h"
 #include "pasta_fp.h"
 #include "pasta_fq.h"
@@ -15,7 +16,7 @@ extern void group_add(Group *r, const Group *p, const Group *q);
 bool notary_sign(Signature *sig, const Keypair *kp, const uint8_t *msg, const size_t len, const uint8_t network_id)
 {
   // Convert msg bytes to ROInput
-  uint64_t input_fields[4 * 0]; // Messages are stored in bits (no fields)
+  Field input_fields[4 * 0]; // Messages are stored in bits (no fields)
   uint8_t input_bits[len];
   ROInput input;
   input.fields_capacity = 0;
@@ -63,7 +64,7 @@ bool notary_sign(Signature *sig, const Keypair *kp, const uint8_t *msg, const si
 bool notary_verify(Signature *sig, const Compressed *pub_compressed, const uint8_t *msg, const size_t len, uint8_t network_id)
 {
   // Convert msg to ROInput
-  uint64_t input_fields[4 * 0]; // Messages are stored in bits (no fields)
+  Field input_fields[4 * 0]; // Messages are stored in bits (no fields)
   uint8_t input_bits[len];
   ROInput input;
   input.fields_capacity = 0;

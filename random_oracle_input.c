@@ -1,11 +1,15 @@
+#include <inttypes.h>
+
 #include "random_oracle_input.h"
 #include "utils.h"
 #include "pasta_fp.h"
 #include "pasta_fq.h"
 
 void roinput_print_fields(const ROInput *input) {
-  for (size_t i = 0; i < LIMBS_PER_FIELD * input->fields_len; ++i) {
-    printf("fs[%zu] = 0x%" PRIx64 "\n", i, input->fields[i]);
+  for (size_t i = 0; i < input->fields_len; ++i) {
+      for (size_t j = 0; i < LIMBS_PER_FIELD; ++j) {
+          printf("fs[%zu][%zu] = 0x%" PRIx64 "\n", i, j, input->fields[i][j]);
+      }
   }
 }
 
@@ -23,9 +27,7 @@ void roinput_add_field(ROInput *input, const Field a) {
     exit(1);
   }
 
-  size_t offset = LIMBS_PER_FIELD * input->fields_len;
-
-  fiat_pasta_fp_copy(input->fields + offset, a);
+  fiat_pasta_fp_copy(input->fields[input->fields_len], a);
 
   input->fields_len += 1;
 }
@@ -117,7 +119,7 @@ void roinput_to_bytes(uint8_t *out, const ROInput *input) {
 
   // first the field elements, then the bitstrings
   for (size_t i = 0; i < input->fields_len; ++i) {
-    fiat_pasta_fp_from_montgomery(tmp, input->fields + (i * LIMBS_PER_FIELD));
+    fiat_pasta_fp_from_montgomery(tmp, input->fields[i]);
 
     for (size_t j = 0; j < FIELD_SIZE_IN_BITS; ++j) {
       size_t limb_idx = j / 64;
@@ -143,8 +145,7 @@ size_t roinput_to_fields(uint64_t *out, const ROInput *input) {
 
   // Copy over the field elements
   for (size_t i = 0; i < input->fields_len; ++i) {
-    size_t offset = i * LIMBS_PER_FIELD;
-    fiat_pasta_fp_copy(out + offset, input->fields + offset);
+    fiat_pasta_fp_copy(out + i * LIMBS_PER_FIELD, input->fields[i]);
   }
   output_len += input->fields_len;
 

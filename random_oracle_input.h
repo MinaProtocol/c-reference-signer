@@ -1,16 +1,22 @@
 #pragma once
 
-#include <inttypes.h>
 #include "crypto.h"
 
 typedef struct roinput_t {
-  uint64_t* fields;
-  PackedBits bits;
+  Field* fields;
+  uint8_t* bits;
   size_t fields_len;
   size_t fields_capacity;
   size_t bits_len;
   size_t bits_capacity;
 } ROInput;
+
+#define roinput_create(fs, bs) { \
+  .fields = fs, \
+  .fields_capacity = ARRAY_LEN(fs), \
+  .bits = bs, \
+  .bits_capacity = 8*ARRAY_LEN(bs) \
+}
 
 void roinput_add_field(ROInput *input, const Field a);
 void roinput_add_scalar(ROInput *input, const Scalar a);
