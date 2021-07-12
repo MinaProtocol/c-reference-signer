@@ -83,7 +83,7 @@ int main(int argc, char* argv[]) {
   uint8_t network_id = MAINNET ? MAINNET_ID : TESTNET_ID;
   sign(&sig, &kp, &txn, network_id);
 
-  if (!verify(&sig, &pub_compressed, &txn, network_id)) {
+  if (!verify_transaction_sig(&sig, &pub_compressed, &txn, network_id)) {
     exit(1);
   }
 
@@ -171,7 +171,7 @@ int main(int argc, char* argv[]) {
 
   sign(&sig, &kp, &del, network_id);
 
-  if (!verify(&sig, &pub_compressed, &del, network_id)) {
+  if (!verify_transaction_sig(&sig, &pub_compressed, &del, network_id)) {
     exit(1);
   }
 

@@ -25,7 +25,7 @@
 #define COIN 1000000000ULL
 
 typedef uint64_t Field[LIMBS_PER_FIELD];
-typedef uint64_t Scalar[LIMBS_PER_FIELD];
+typedef uint64_t Scalar[LIMBS_PER_SCALAR];
 
 typedef uint64_t Currency;
 #define FEE_BITS 64
@@ -132,7 +132,12 @@ void generate_pubkey(Affine *pub_key, const Scalar priv_key);
 bool generate_address(char *address, size_t len, const Affine *pub_key);
 
 void sign(Signature *sig, const Keypair *kp, const Transaction *transaction, const uint8_t network_id);
-bool verify(Signature *sig, const Compressed *pub, const Transaction *transaction, const uint8_t network_id);
+bool verify(Signature *sig, const Compressed *pub, const ROInput *input, const uint8_t network_id);
+bool verify_transaction_sig(Signature *sig, const Compressed *pub_compressed, const Transaction *transaction, uint8_t network_id);
+// Helper to be exposed as a library function
+// to perform verification of signature in
+// other programming languages.
+bool verify_string(const char * sig, const char * pub_compressed, const char * data, size_t data_sz, uint8_t network_id);
 
 void compress(Compressed *compressed, const Affine *pt);
 

@@ -172,7 +172,7 @@ bool sign_transaction(char *signature, const size_t len,
   Signature sig;
   sign(&sig, &kp, &txn, network_id);
 
-  if (!verify(&sig, &pub_compressed, &txn, network_id)) {
+  if (!verify_transaction_sig(&sig, &pub_compressed, &txn, network_id)) {
     return false;
   }
 

@@ -676,7 +676,10 @@ void generate_keypair(Keypair *keypair, uint32_t account)
     uint64_t priv_non_montgomery[4] = { 0, 0, 0, 0 };
     FILE* fr = fopen("/dev/urandom", "r");
     if (!fr) perror("urandom"), exit(EXIT_FAILURE);
-    fread((void*)priv_non_montgomery, sizeof(uint8_t), 32, fr);
+    int res_unused = fread((void*)priv_non_montgomery, sizeof(uint8_t), 32, fr);
+    if (res_unused) {
+      // TODO check the result of the fread
+    }
     fclose(fr), fr = NULL;
 
     // Make sure the private key is in [0, p)
@@ -879,21 +882,8 @@ void read_public_key_compressed(Compressed *out, const char *pubkeyBase58) {
   size_t pubkeyBytesLen = 40;
   unsigned char pubkeyBytes[40];
   b58tobin(pubkeyBytes, &pubkeyBytesLen, pubkeyBase58, 0);
-
-  uint64_t x_coord_non_montgomery[4] = { 0, 0, 0, 0 };
-
-  size_t offset = 3;
-  for (size_t i = 0; i < 4; ++i) {
-    const size_t BYTES_PER_LIMB = 8;
-    // 8 bytes per limb
-    for (size_t j = 0; j < BYTES_PER_LIMB; ++j) {
-      size_t k = offset + BYTES_PER_LIMB * i + j;
-      x_coord_non_montgomery[i] |= ( ((uint64_t) pubkeyBytes[k]) << (8 * j));
-    }
-  }
-
-  fiat_pasta_fp_to_montgomery(out->x, x_coord_non_montgomery);
-  out->is_odd = (bool) pubkeyBytes[offset + 32];
+  fiat_pasta_fp_to_montgomery(out->x, (uint64_t*) (pubkeyBytes + 3));
+  out->is_odd = (bool) pubkeyBytes[35];
 }
 
 void prepare_memo(uint8_t *out, const char *s) {
@@ -908,7 +898,7 @@ void prepare_memo(uint8_t *out, const char *s) {
   }
 }
 
-bool verify(Signature *sig, const Compressed *pub_compressed, const Transaction *transaction, uint8_t network_id)
+bool verify_transaction_sig(Signature *sig, const Compressed *pub_compressed, const Transaction *transaction, uint8_t network_id)
 {
     // Convert transaction to ROInput
     uint64_t input_fields[4 * 3];
@@ -940,11 +930,16 @@ bool verify(Signature *sig, const Compressed *pub_compressed, const Transaction 
     roinput_add_uint64(&input, transaction->amount);
     roinput_add_bit(&input, transaction->token_locked);
 
+    return verify(sig, pub_compressed, &input, network_id);
+}
+
+bool verify(Signature *sig, const Compressed *pub_compressed, const ROInput * input, uint8_t network_id)
+{
     Affine pub;
     decompress(&pub, pub_compressed);
 
     Scalar e;
-    message_hash(e, &pub, sig->rx, &input, POSEIDON_3W, network_id);
+    message_hash(e, &pub, sig->rx, input, POSEIDON_3W, network_id);
 
     Group g;
     affine_to_group(&g, &AFFINE_ONE);
@@ -974,6 +969,45 @@ bool verify(Signature *sig, const Compressed *pub_compressed, const Transaction 
     const bool ry_even = (ry_bigint[0] & 1) == 0;
 
     return (ry_even && fiat_pasta_fp_equals(raff.x, sig->rx));
+}
+
+static const unsigned char byte_reverse_lookup[16] = {
+  0x0, 0x8, 0x4, 0xc, 0x2, 0xa, 0x6, 0xe,
+  0x1, 0x9, 0x5, 0xd, 0x3, 0xb, 0x7, 0xf, };
+
+uint8_t byte_reverse(uint8_t n) {
+  // Reverse the top and bottom nibble then swap them.
+  return (byte_reverse_lookup[n&0b1111] << 4) | byte_reverse_lookup[n>>4];
+}
+
+// Helper to be exposed as a library function
+// to perform verification of signature in
+// other programming languages.
+bool verify_string(const char * sig_raw, const char * pub_compressed_raw, const char * data, size_t data_sz, uint8_t network_id) {
+  Signature sig;
+  Compressed pub_compressed;
+  pub_compressed.is_odd = pub_compressed_raw[sizeof(Field)] != 0;
+  fiat_pasta_fp_to_montgomery(pub_compressed.x, (uint64_t*) pub_compressed_raw);
+  fiat_pasta_fp_to_montgomery(sig.rx, (uint64_t*) sig_raw);
+  fiat_pasta_fq_to_montgomery(sig.s, (uint64_t*) (sig_raw + sizeof(Field)));
+
+  // TODO I do not know exactly why I need byte reverse here,
+  // but without it verify_string fails to validate signatures from
+  // OCaml implementation
+  uint8_t bits[data_sz];
+  for (size_t i = 0; i < data_sz; ++i) {
+    bits[i] = byte_reverse(data[i]);
+  }
+
+  ROInput input;
+  input.fields_capacity = 0;
+  input.bits_capacity = 8 * data_sz;
+  input.bits = bits;
+  input.fields = NULL;
+  input.fields_len = 0;
+  input.bits_len = input.bits_capacity;
+
+  return verify(&sig, &pub_compressed, &input, network_id);
 }
 
 void sign(Signature *sig, const Keypair *kp, const Transaction *transaction, uint8_t network_id)
