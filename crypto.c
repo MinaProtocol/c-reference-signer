@@ -74,6 +74,23 @@ static const Affine AFFINE_ONE = {
     }
 };
 
+bool field_from_hex(Field b, const char *hex) {
+  if (strnlen(hex, 64) != 64) {
+    return false;
+  }
+  uint8_t bytes[32];
+  for (size_t i = 0; i < sizeof(bytes); i++) {
+    sscanf(&hex[2*i], "%02hhx", &bytes[i]);
+  }
+
+  if (bytes[3] & 0xc000000000000000) {
+      return false;
+  }
+
+  fiat_pasta_fp_to_montgomery(b, (uint64_t *)bytes);
+  return true;
+}
+
 void field_copy(Field c, const Field a)
 {
     fiat_pasta_fp_copy(c, a);
@@ -145,17 +162,34 @@ unsigned int field_eq(const Field a, const Field b)
     }
 }
 
-void scalar_copy(Scalar b, const Scalar a)
-{
-    fiat_pasta_fq_copy(b, a);
+bool scalar_from_hex(Field b, const char *hex) {
+  if (strnlen(hex, 64) != 64) {
+    return false;
+  }
+  uint8_t bytes[32];
+  for (size_t i = 0; i < sizeof(bytes); i++) {
+    sscanf(&hex[2*i], "%02hhx", &bytes[i]);
+  }
+
+  if (bytes[3] & 0xc000000000000000) {
+      return false;
+  }
+
+  fiat_pasta_fq_to_montgomery(b, (uint64_t *)bytes);
+  return true;
 }
 
-void scalar_from_words(Scalar a, const uint64_t words[4])
+void scalar_from_words(Scalar b, const uint64_t words[4])
 {
     uint64_t tmp[4];
     memcpy(tmp, words, sizeof(tmp));
     tmp[3] &= (((uint64_t)1 << 62) - 1); // drop top two bits
-    fiat_pasta_fq_to_montgomery(a, tmp);
+    fiat_pasta_fq_to_montgomery(b, tmp);
+}
+
+void scalar_copy(Scalar b, const Scalar a)
+{
+    fiat_pasta_fq_copy(b, a);
 }
 
 void scalar_add(Scalar c, const Scalar a, const Scalar b)
