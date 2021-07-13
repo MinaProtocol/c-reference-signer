@@ -83,7 +83,7 @@ bool field_from_hex(Field b, const char *hex) {
     sscanf(&hex[2*i], "%02hhx", &bytes[i]);
   }
 
-  if (bytes[3] & 0xc000000000000000) {
+  if (bytes[31] & 0xc0) {
       return false;
   }
 
@@ -171,7 +171,7 @@ bool scalar_from_hex(Field b, const char *hex) {
     sscanf(&hex[2*i], "%02hhx", &bytes[i]);
   }
 
-  if (bytes[3] & 0xc000000000000000) {
+  if (bytes[31] & 0xc0) {
       return false;
   }
 
