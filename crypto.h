@@ -107,13 +107,15 @@ void roinput_add_bytes(ROInput *input, const uint8_t *bytes, size_t len);
 void roinput_add_uint32(ROInput *input, const uint32_t x);
 void roinput_add_uint64(ROInput *input, const uint64_t x);
 
+bool scalar_from_hex(Scalar b, const char *hex);
+void scalar_from_words(Scalar b, const uint64_t words[4]);
 void scalar_copy(Scalar b, const Scalar a);
-void scalar_from_words(Scalar a, const uint64_t words[4]);
 bool scalar_eq(const Scalar a, const Scalar b);
 void scalar_add(Scalar c, const Scalar a, const Scalar b);
 void scalar_mul(Scalar c, const Scalar a, const Scalar b);
 void scalar_negate(Scalar b, const Scalar a);
 
+bool field_from_hex(Field b, const char *hex);
 void field_copy(Field c, const Field a);
 bool field_is_odd(const Field y);
 void field_add(Field c, const Field a, const Field b);
