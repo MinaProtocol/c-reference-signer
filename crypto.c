@@ -710,7 +710,10 @@ void generate_keypair(Keypair *keypair, uint32_t account)
     uint64_t priv_non_montgomery[4] = { 0, 0, 0, 0 };
     FILE* fr = fopen("/dev/urandom", "r");
     if (!fr) perror("urandom"), exit(EXIT_FAILURE);
-    fread((void*)priv_non_montgomery, sizeof(uint8_t), 32, fr);
+    int fres = fread((void*)priv_non_montgomery, sizeof(uint8_t), 32, fr);
+    if (fres != 0) {
+      // TODO handle the error of fread
+    }
     fclose(fr), fr = NULL;
 
     // Make sure the private key is in [0, p)
@@ -1126,6 +1129,17 @@ bool sign_message(Signature *sig, const Keypair *kp, const uint8_t *msg, const s
   scalar_add(sig->s, k, e_priv);
 
   return true;
+}
+
+bool verify_message_string(const char * sig_raw, const char * pub_compressed_raw, const char * msg, const size_t len, uint8_t network_id)
+{
+  Signature sig;
+  Compressed pub_compressed;
+  pub_compressed.is_odd = pub_compressed_raw[sizeof(Field)] != 0;
+  fiat_pasta_fp_to_montgomery(pub_compressed.x, (uint64_t*) pub_compressed_raw);
+  fiat_pasta_fp_to_montgomery(sig.rx, (uint64_t*) sig_raw);
+  fiat_pasta_fq_to_montgomery(sig.s, (uint64_t*) (sig_raw + sizeof(Field)));
+  return verify_message(&sig, &pub_compressed, (uint8_t*) msg, len, network_id);
 }
 
 bool verify_message(Signature *sig, const Compressed *pub_compressed, const uint8_t *msg, const size_t len, uint8_t network_id)
