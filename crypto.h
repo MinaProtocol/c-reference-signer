@@ -137,6 +137,7 @@ void sign(Signature *sig, const Keypair *kp, const Transaction *transaction, con
 bool verify(Signature *sig, const Compressed *pub, const Transaction *transaction, const uint8_t network_id);
 
 void compress(Compressed *compressed, const Affine *pt);
+void decompress(Affine *pt, const Compressed *compressed);
 
 void read_public_key_compressed(Compressed *out, const char *pubkeyBase58);
 void prepare_memo(uint8_t *out, const char *s);

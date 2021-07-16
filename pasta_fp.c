@@ -17,6 +17,9 @@
 
 #include <stdint.h>
 #include <inttypes.h>
+#include <stdbool.h>
+#include <stddef.h>
+
 typedef unsigned char fiat_pasta_fp_uint1;
 typedef signed char fiat_pasta_fp_int1;
 
@@ -24,6 +27,9 @@ typedef signed char fiat_pasta_fp_int1;
 #error "This code only works on a two's complement system"
 #endif
 
+// x^{(p - 1) / 2}
+const bool P_MINUS_1_OVER_2[] = {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
+const size_t P_MINUS_1_OVER_2_LEN = 254;
 
 /*
  * The function fiat_pasta_fp_addcarryx_u64 is an addition with carry.
@@ -2040,9 +2046,6 @@ void fiat_pasta_fp_divstep(uint64_t* out1, uint64_t out2[5], uint64_t out3[5], u
   out5[3] = x126;
 }
 
-#include <stdbool.h>
-#include <stddef.h>
-
 void fiat_pasta_fp_copy(uint64_t out[4], const uint64_t value[4]) {
     for (size_t j = 0; j < 4; ++j) { out[j] = value[j]; }
 }
@@ -2114,9 +2117,6 @@ bool fiat_pasta_fp_equals_one(const uint64_t x[4]) {
 }
 
 int fiat_pasta_fp_legendre(const uint64_t arg1[4]) {
-  // x^{(p - 1) / 2}
-  const bool P_MINUS_1_OVER_2[] = {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 1, 0, 0, 1, 1, 0, 0, 1, 1, 1, 1, 1, 0, 0, 1, 0, 0, 0, 1, 1, 0, 1, 1, 1, 0, 0, 1, 1, 0, 0, 1, 0, 0, 1, 0, 1, 1, 0, 1, 0, 0, 1, 1, 0, 0, 0, 0, 1, 1, 1, 0, 1, 1, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0};
-
   uint64_t tmp[4];
 
   fiat_pasta_fp_pow(tmp, arg1, P_MINUS_1_OVER_2, 254);
@@ -2149,6 +2149,12 @@ void fiat_pasta_fp_sqrt(uint64_t x[4], const uint64_t value[4]) {
 
     if (fiat_pasta_fp_equals_zero(value)) {
       for (size_t j = 0; j < 4; ++j) { x[j] = 0; }
+      return;
+    }
+
+    uint64_t check[4];
+    fiat_pasta_fp_pow(check, value, P_MINUS_1_OVER_2, P_MINUS_1_OVER_2_LEN);
+    if (!fiat_pasta_fp_equals_one(check)) {
       return;
     }
 
