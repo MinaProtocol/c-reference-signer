@@ -989,11 +989,11 @@ int main(int argc, char* argv[]) {
 
     Compressed good_pk;
     read_public_key_compressed(&good_pk, "B62qoCvDGrbMFn5bj7PRmQC7CVvXzNQSoXXo5BmwVGTZUdUV3aCgkaK");
-    decompress(&pub, &good_pk);
+    assert(decompress(&pub, &good_pk));
 
     Compressed bad_pk;
     read_public_key_compressed(&bad_pk, "B62qprBg8jPke59MztbJPLKnSY9xbEiNNG9JqSA5jKxqXHPCWMYJjPM");
-    decompress(&pub, &bad_pk);
+    assert(!decompress(&pub, &bad_pk));
   }
 
   test_scalars();

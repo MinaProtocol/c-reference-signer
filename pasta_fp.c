@@ -2144,18 +2144,18 @@ void fiat_pasta_fp_print(const uint64_t x[4]) {
     printf("] \n");
 }
 
-void fiat_pasta_fp_sqrt(uint64_t x[4], const uint64_t value[4]) {
+bool fiat_pasta_fp_sqrt(uint64_t x[4], const uint64_t value[4]) {
     // A few assertions to make sure s, t, and nqr are initialized.
 
     if (fiat_pasta_fp_equals_zero(value)) {
       for (size_t j = 0; j < 4; ++j) { x[j] = 0; }
-      return;
+      return true;
     }
 
     uint64_t check[4];
     fiat_pasta_fp_pow(check, value, P_MINUS_1_OVER_2, P_MINUS_1_OVER_2_LEN);
     if (!fiat_pasta_fp_equals_one(check)) {
-      return;
+      return false;
     }
 
     uint64_t one[4];
@@ -2222,4 +2222,6 @@ void fiat_pasta_fp_sqrt(uint64_t x[4], const uint64_t value[4]) {
 
         v = m;
     }
+
+    return true;
 }
