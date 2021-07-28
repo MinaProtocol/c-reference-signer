@@ -168,12 +168,11 @@ bool sign_transaction(char *signature, const size_t len,
   txn.amount = amount;
   txn.token_locked = false;
 
-  Compressed pub_compressed;
-  compress(&pub_compressed, &kp.pub);
-
   Signature sig;
   sign(&sig, &kp, &txn, network_id);
 
+  Compressed pub_compressed;
+  compress(&pub_compressed, &kp.pub);
   if (!verify(&sig, &pub_compressed, &txn, network_id)) {
     return false;
   }
@@ -250,6 +249,41 @@ bool check_sign_tx(const char *account_number,
    }
 
    return strcmp(signature, target) == 0;
+}
+
+bool check_sign_message(const char *signer_priv_hex, const uint8_t *msg, const size_t len,
+                        const uint8_t network_id, const char *target)
+{
+  Scalar priv_key;
+  if (!privkey_from_hex(priv_key, signer_priv_hex)) {
+    return false;
+  }
+
+  Keypair kp;
+  scalar_copy(kp.priv, priv_key);
+  generate_pubkey(&kp.pub, priv_key);
+
+  Signature sig;
+  if (!sign_message(&sig, &kp, msg, len, network_id)) {
+     return false;
+  }
+
+  Compressed pub_compressed;
+  compress(&pub_compressed, &kp.pub);
+  if (!verify_message(&sig, &pub_compressed, msg, len, network_id)) {
+    return false;
+  }
+
+  char signature[129];
+  sig_to_hex(signature, sizeof(signature), sig);
+
+  if (strcmp(signature, target) != 0) {
+    fprintf(stderr, "signature mismatch: expected=%s, got=%s\n",
+            target, signature);
+    return false;
+  }
+
+  return true;
 }
 
 char *field_to_hex(char *hex, size_t len, const Field x) {
@@ -955,6 +989,78 @@ void test_sign_tx() {
       }
 }
 
+void test_sign_message() {
+  assert(check_sign_message("164244176fddb5d769b7de2027469d027ad428fadcc0c02396e6280142efb718",
+                            (uint8_t *)"Hello message signing!", 22, MAINNET_ID,
+                             "323b8ceb03a61d9e1b6e36b5aae40c660989fb7a082d7821175c7acaf0bb860a0ecaa64d883c4fc849d003c7dba7f5b32f3296f7a20dc31c0da9eb7c4add9d70"));
+
+  assert(check_sign_message("164244176fddb5d769b7de2027469d027ad428fadcc0c02396e6280142efb718",
+                            (uint8_t *)"Hello message signing!", 22, TESTNET_ID,
+                            "21d34c4dea1737e99b60b23f2f75e1a4f307e599f8e0e2c7812f0401a12f809404d5d98701fb82215ed60fc06e31c57f2dda19a852c991b1329502f95d865a37"));
+
+  assert(check_sign_message("164244176fddb5d769b7de2027469d027ad428fadcc0c02396e6280142efb718",
+                            (uint8_t *)"Hello message signing\"", 22, MAINNET_ID,
+                            "22343219a00a6a96ea921ed5b123f04d3fed5c127679015ab517a47191fc3d6d0f6f91857051c42b246e8ac213364f7a75de17704409050f0aba7daeffdcf87e"));
+
+  assert(check_sign_message("164244176fddb5d769b7de2027469d027ad428fadcc0c02396e6280142efb718",
+                            (uint8_t *)"Hello message signing#", 22, MAINNET_ID,
+                            "2f5c98cb977722a2d3ef62d2f8f56fdbc36958dd85a935f3fac2986e6ab7f2a923f0398a8a8ef6ade3aa484299939aa8c63c5dacd4c2e5bb08129a0a25dc9c99"));
+
+  // TODO: Check with Izaak if signing empty messages is OK security wise with schnorr scheme
+  assert(check_sign_message("164244176fddb5d769b7de2027469d027ad428fadcc0c02396e6280142efb718",
+                            (uint8_t *)"", 0, MAINNET_ID,
+                            "2f55b066d17000d46f1e99557b478cf69bdef36c70cec0187dcb0eedf0957d65089944c833195fd7c12a640430936cce07449689c2d58effdf8d7215980d75ce"));
+
+  // Check we are respecting the length passed
+  assert(check_sign_message("164244176fddb5d769b7de2027469d027ad428fadcc0c02396e6280142efb718",
+                            (uint8_t *)"1123", 0, MAINNET_ID,
+                            "2f55b066d17000d46f1e99557b478cf69bdef36c70cec0187dcb0eedf0957d65089944c833195fd7c12a640430936cce07449689c2d58effdf8d7215980d75ce"));
+
+  {
+    uint8_t bytes[] = { };
+    assert(check_sign_message("164244176fddb5d769b7de2027469d027ad428fadcc0c02396e6280142efb718",
+                              bytes, sizeof(bytes), MAINNET_ID,
+                              "2f55b066d17000d46f1e99557b478cf69bdef36c70cec0187dcb0eedf0957d65089944c833195fd7c12a640430936cce07449689c2d58effdf8d7215980d75ce"));
+  }
+
+  {
+    uint8_t byte = 0;
+    assert(check_sign_message("164244176fddb5d769b7de2027469d027ad428fadcc0c02396e6280142efb718",
+                              &byte, sizeof(byte), MAINNET_ID,
+                              "313950fd22463fd2b79d3b2a2ce9ddffe57b4c115442c20a0c247f07a56999b73b09bcedb217ea151c5557fb9a549cafaca72c2bbd21ac31c77c26f59a70fd0d"));
+  }
+
+  {
+    uint8_t byte = 0xfe;
+    assert(check_sign_message("164244176fddb5d769b7de2027469d027ad428fadcc0c02396e6280142efb718",
+                              &byte, sizeof(byte), MAINNET_ID,
+                              "091aaf54133ac3ec97c8db1bf9b47d11bed6741337d09c44af739eab4d6f961616234e7d5c4f74260ddb361558c7f06843cbc20fa8e25a87b39e0ff5c7377787"));
+  }
+
+  {
+    uint8_t bytes[] = { 0x01, 0xfe, 0x74 };
+    assert(check_sign_message("164244176fddb5d769b7de2027469d027ad428fadcc0c02396e6280142efb718",
+                              bytes, sizeof(bytes), MAINNET_ID,
+                              "197c2fa73e4b4acd47ada0c97ff6c2cbda162dc812e0156c441f4b32993e48223b0b7dbe85a8270823726f65cc6f47dccfef0dd0c391fbb335a288d4694b538a"));
+  }
+
+  {
+    uint8_t bytes[] = {
+      0xaf, 0xac, 0xfa, 0xca, 0x12, 0xbc, 0x09, 0x00,
+      0x5d, 0x99, 0x01, 0xd4, 0xe9, 0x9b, 0xce, 0xee,
+      0x1d, 0x22, 0x46, 0x3f, 0xb7, 0x23, 0x9d, 0xb3,
+      0x2a, 0x2c, 0xe9, 0xd7, 0xdf, 0xfe, 0x57, 0xb4,
+      0xc1, 0x15, 0x44, 0x2c, 0x20, 0xa1, 0x00, 0x01,
+      0xb1, 0x7f, 0x7b, 0x73, 0x1c, 0x57, 0x16, 0x1a,
+      0x2e, 0x01, 0x3c, 0x50, 0x15, 0x1c, 0x54, 0xf2,
+      0x45, 0x3b, 0x78, 0x45, 0x4e, 0xbc, 0x71, 0x83
+    };
+    assert(check_sign_message("164244176fddb5d769b7de2027469d027ad428fadcc0c02396e6280142efb718",
+                              bytes, sizeof(bytes), MAINNET_ID,
+                              "1b58d0c5a7ff38259ecf631a49cd7e2895631e1967564bccc73736c7b0ff3a443eaa2bcbf824c6dc1a4dd04c9fa7d128ee79688a44515320a58963d02ab3cb38"));
+  }
+}
+
 int main(int argc, char* argv[]) {
   printf("Running unit tests\n");
 
@@ -1005,6 +1111,8 @@ int main(int argc, char* argv[]) {
   test_get_address();
 
   test_sign_tx();
+
+  test_sign_message();
 
   printf("Unit tests completed successfully\n");
 

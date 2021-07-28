@@ -710,7 +710,10 @@ void generate_keypair(Keypair *keypair, uint32_t account)
     uint64_t priv_non_montgomery[4] = { 0, 0, 0, 0 };
     FILE* fr = fopen("/dev/urandom", "r");
     if (!fr) perror("urandom"), exit(EXIT_FAILURE);
-    fread((void*)priv_non_montgomery, sizeof(uint8_t), 32, fr);
+    int fres = fread((void*)priv_non_montgomery, sizeof(uint8_t), 32, fr);
+    if (fres != 0) {
+      // TODO handle the error of fread
+    }
     fclose(fr), fr = NULL;
 
     // Make sure the private key is in [0, p)
@@ -1078,4 +1081,114 @@ void sign(Signature *sig, const Keypair *kp, const Transaction *transaction, uin
     Scalar e_priv;
     scalar_mul(e_priv, e, kp->priv);
     scalar_add(sig->s, k, e_priv);
+}
+
+bool sign_message(Signature *sig, const Keypair *kp, const uint8_t *msg, const size_t len, const uint8_t network_id)
+{
+  // Convert msg bytes to ROInput
+  uint64_t input_fields[4 * 0]; // Messages are stored in bits (no fields)
+  uint8_t input_bits[len];
+  ROInput input;
+  input.fields_capacity = 0;
+  input.bits_capacity = 8 * len;
+  input.fields = input_fields;
+  input.bits = input_bits;
+  input.fields_len = 0;
+  input.bits_len = 0;
+
+  roinput_add_bytes(&input, msg, len);
+
+  Scalar k;
+  message_derive(k, kp, &input, network_id);
+
+  uint64_t k_nonzero;
+  fiat_pasta_fq_nonzero(&k_nonzero, k);
+  if (! k_nonzero) {
+    return false;
+  }
+
+  // r = k*g
+  Affine r;
+  affine_scalar_mul(&r, k, &AFFINE_ONE);
+
+  field_copy(sig->rx, r.x);
+
+  if (field_is_odd(r.y)) {
+      // negate (k = -k)
+      Scalar tmp;
+      fiat_pasta_fq_copy(tmp, k);
+      scalar_negate(k, tmp);
+  }
+
+  Scalar e;
+  message_hash(e, &kp->pub, r.x, &input, POSEIDON_3W, network_id);
+
+  // s = k + e*sk
+  Scalar e_priv;
+  scalar_mul(e_priv, e, kp->priv);
+  scalar_add(sig->s, k, e_priv);
+
+  return true;
+}
+
+bool verify_message_string(const char * sig_raw, const char * pub_compressed_raw, const char * msg, const size_t len, uint8_t network_id)
+{
+  Signature sig;
+  Compressed pub_compressed;
+  pub_compressed.is_odd = pub_compressed_raw[sizeof(Field)] != 0;
+  fiat_pasta_fp_to_montgomery(pub_compressed.x, (uint64_t*) pub_compressed_raw);
+  fiat_pasta_fp_to_montgomery(sig.rx, (uint64_t*) sig_raw);
+  fiat_pasta_fq_to_montgomery(sig.s, (uint64_t*) (sig_raw + sizeof(Field)));
+  return verify_message(&sig, &pub_compressed, (uint8_t*) msg, len, network_id);
+}
+
+bool verify_message(Signature *sig, const Compressed *pub_compressed, const uint8_t *msg, const size_t len, uint8_t network_id)
+{
+  // Convert msg bytes to ROInput
+  uint64_t input_fields[4 * 0]; // Messages are stored in bits (no fields)
+  uint8_t input_bits[len];
+  ROInput input;
+  input.fields_capacity = 0;
+  input.bits_capacity = 8 * len;
+  input.fields = input_fields;
+  input.bits = input_bits;
+  input.fields_len = 0;
+  input.bits_len = 0;
+
+  roinput_add_bytes(&input, msg, len);
+
+  Affine pub;
+  decompress(&pub, pub_compressed);
+
+  Scalar e;
+  message_hash(e, &pub, sig->rx, &input, POSEIDON_3W, network_id);
+
+  Group g;
+  affine_to_group(&g, &AFFINE_ONE);
+
+  Group sg;
+  group_scalar_mul(&sg, sig->s, &g);
+
+  Group pub_proj;
+  affine_to_group(&pub_proj, &pub);
+  Group epub;
+  group_scalar_mul(&epub, e, &pub_proj);
+
+  Group neg_epub;
+  fiat_pasta_fp_copy(neg_epub.X, epub.X);
+  fiat_pasta_fp_opp(neg_epub.Y, epub.Y);
+  fiat_pasta_fp_copy(neg_epub.Z, epub.Z);
+
+  Group r;
+  group_add(&r, &sg, &neg_epub);
+
+  Affine raff;
+  affine_from_group(&raff, &r);
+
+  Field ry_bigint;
+  fiat_pasta_fp_from_montgomery(ry_bigint, raff.y);
+
+  const bool ry_even = (ry_bigint[0] & 1) == 0;
+
+  return (ry_even && fiat_pasta_fp_equals(raff.x, sig->rx));
 }
