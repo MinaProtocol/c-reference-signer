@@ -887,7 +887,7 @@ void compress(Compressed *compressed, const Affine *pt) {
   compressed->is_odd = y_bigint[0] & 1;
 }
 
-void decompress(Affine *pt, const Compressed *compressed) {
+bool decompress(Affine *pt, const Compressed *compressed) {
   fiat_pasta_fp_copy(pt->x, compressed->x);
 
   Field x2;
@@ -898,7 +898,9 @@ void decompress(Affine *pt, const Compressed *compressed) {
   fiat_pasta_fp_add(y2, x3, GROUP_COEFF_B);
 
   Field y_pre;
-  fiat_pasta_fp_sqrt(y_pre, y2);
+  if (!fiat_pasta_fp_sqrt(y_pre, y2)) {
+    return false;
+  }
   Field y_pre_bigint;
   fiat_pasta_fp_from_montgomery(y_pre_bigint, y_pre);
 
@@ -908,6 +910,8 @@ void decompress(Affine *pt, const Compressed *compressed) {
   } else {
     fiat_pasta_fp_opp(pt->y, y_pre);
   }
+
+  return true;
 }
 
 void read_public_key_compressed(Compressed *out, const char *pubkeyBase58) {
@@ -976,7 +980,9 @@ bool verify(Signature *sig, const Compressed *pub_compressed, const Transaction 
     roinput_add_bit(&input, transaction->token_locked);
 
     Affine pub;
-    decompress(&pub, pub_compressed);
+    if (!decompress(&pub, pub_compressed)) {
+      return false;
+    }
 
     Scalar e;
     message_hash(e, &pub, sig->rx, &input, POSEIDON_3W, network_id);
