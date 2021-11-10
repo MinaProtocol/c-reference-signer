@@ -12,6 +12,10 @@
 #include "sha256.h"
 #include "curve_checks.h"
 
+#ifdef OSX
+  #define explicit_bzero bzero
+#endif
+
 #define ARRAY_LEN(x) (sizeof(x)/sizeof(x[0]))
 
 #define DEFAULT_TOKEN_ID 1
@@ -101,11 +105,11 @@ void sig_to_hex(char *hex, const size_t len, const Signature sig) {
   uint64_t words[4];
   fiat_pasta_fp_from_montgomery(words, sig.rx);
   for (size_t i = 4; i > 0; i--) {
-    sprintf(&hex[16*(4 - i)], "%016lx", htole64(words[i - 1]));
+    sprintf(&hex[16*(4 - i)], "%016" PRIx64, words[i - 1]);
   }
   fiat_pasta_fq_from_montgomery(words, sig.s);
   for (size_t i = 4; i > 0; i--) {
-    sprintf(&hex[64 + 16*(4 - i)], "%016lx", htole64(words[i - 1]));
+    sprintf(&hex[64 + 16*(4 - i)], "%016" PRIx64, words[i - 1]);
   }
 }
 
@@ -191,8 +195,8 @@ bool sign_transaction(char *signature, const size_t len,
            "                        %s,\n"
            "                        \"%s\",\n"
            "                        \"%s\",\n"
-           "                        %zu,\n"
-           "                        %zu,\n"
+           "                        %" PRIu64 ",\n"
+           "                        %" PRIu64 ",\n"
            "                        %u,\n"
            "                        %u,\n"
            "                        \"%s\",\n"
@@ -281,7 +285,7 @@ char *scalar_to_hex(char *hex, size_t len, const Scalar x) {
 void print_scalar_as_cstruct(const Scalar x) {
   printf("        { ");
   for (size_t i = 0; i < sizeof(Scalar)/sizeof(x[0]); i++) {
-    printf("0x%016lx, ", x[i]);
+    printf("0x%016" PRIx64 ", ", x[i]);
   }
   printf("},\n");
 }
@@ -290,12 +294,12 @@ void print_affine_as_cstruct(const Affine *a) {
   printf("        {\n");
   printf("            { ");
   for (size_t i = 0; i < sizeof(Field)/sizeof(a->x[0]); i++) {
-    printf("0x%016lx, ", a->x[i]);
+    printf("0x%016" PRIx64 ", ", a->x[i]);
   }
   printf(" },\n");
   printf("            { ");
   for (size_t i = 0; i < sizeof(Field)/sizeof(a->y[0]); i++) {
-    printf("0x%016lx, ", a->y[i]);
+    printf("0x%016" PRIx64 ", ", a->y[i]);
   }
   printf(" },");
   printf("\n        },\n");
