@@ -1,3 +1,7 @@
+ifneq ($(shell uname -s),"Darwin")
+CFLAGS=-D OSX
+endif
+
 all: reference_signer unit_tests
 
 OBJS = base10.o \
@@ -12,15 +16,15 @@ OBJS = base10.o \
 	curve_checks.o
 
 reference_signer: $(OBJS) reference_signer.c
-	$(CC) -Wall -Werror $@.c -o $@ $(OBJS) -lm
+	$(CC) $(CFLAGS) -Wall -Werror $@.c -o $@ $(OBJS) -lm
 
 .PRECIOUS: unit_tests
 unit_tests: $(OBJS) *.c *.h
-	$(CC) -Wall -Werror $@.c -o $@ $(OBJS) -lm
+	$(CC) $(CFLAGS) -Wall -Werror $@.c -o $@ $(OBJS) -lm
 	@./$@
 
 %.o: %.c %.h
-	$(CC) -Wall -Werror $< -c
+	$(CC) $(CFLAGS) -Wall -Werror $< -c
 
 clean:
 	rm -rf *.o *.log reference_signer unit_tests
