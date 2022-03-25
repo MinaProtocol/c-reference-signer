@@ -985,7 +985,7 @@ bool verify(Signature *sig, const Compressed *pub_compressed, const Transaction 
     }
 
     Scalar e;
-    message_hash(e, &pub, sig->rx, &input, POSEIDON_3W, network_id);
+    message_hash(e, &pub, sig->rx, &input, POSEIDON_LEGACY, network_id);
 
     Group g;
     affine_to_group(&g, &AFFINE_ONE);
@@ -1072,7 +1072,7 @@ void sign(Signature *sig, const Keypair *kp, const Transaction *transaction, uin
     }
 
     Scalar e;
-    message_hash(e, &kp->pub, r.x, &input, POSEIDON_3W, network_id);
+    message_hash(e, &kp->pub, r.x, &input, POSEIDON_LEGACY, network_id);
 
     // s = k + e*sk
     Scalar e_priv;
