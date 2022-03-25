@@ -12,9 +12,8 @@
 #include "pasta_fp.h"
 #include "pasta_fq.h"
 #include "poseidon.h"
-#include "poseidon_params_3w.h"
-#include "poseidon_params_5w.h"
-#include "poseidon_params_3.h"
+#include "poseidon_params_legacy.h"
+#include "poseidon_params_kimchi.h"
 
 #define SPONGE_BYTES(sponge_width) (sizeof(Field)*sponge_width)
 #define ROUND_KEY(ctx, round, idx) *(Field *)(ctx->round_keys + (round*ctx->sponge_width + idx)*LIMBS_PER_FIELD)
@@ -41,8 +40,8 @@ static void matrix_mul(State s1, const Field **m, const size_t width)
     }
 }
 
-// 3-wire poseidon permutation function
-static void permutation_3w(PoseidonCtx *ctx)
+// Legacy poseidon permutation function
+static void permutation_legacy(PoseidonCtx *ctx)
 {
     Field tmp;
 
@@ -71,7 +70,8 @@ static void permutation_3w(PoseidonCtx *ctx)
     }
 }
 
-static void permutation(PoseidonCtx *ctx)
+// Kimchi poseidon permutation function
+static void permutation_kimchi(PoseidonCtx *ctx)
 {
     Field tmp;
 
@@ -103,48 +103,34 @@ struct poseidon_config_t {
     const Field **mds_matrix;
     const Field *sponge_iv[2];
     void (*permutation)(PoseidonCtx *);
-} _poseidon_config[3] = {
-    // 0x00 - POSEIDON_3W
+} _poseidon_config[2] = {
+    // 0x00 - POSEIDON_LEGACY
     {
-        .sponge_width = SPONGE_WIDTH_3W,
-        .sponge_rate  = SPONGE_RATE_3W,
-        .full_rounds  = ROUND_COUNT_3W - 1,
-        .sbox_alpha   = SBOX_ALPHA_3W,
-        .round_keys   = (const Field ***)round_keys_3w,
-        .mds_matrix   = (const Field **)mds_matrix_3w,
+        .sponge_width = SPONGE_WIDTH_LEGACY,
+        .sponge_rate  = SPONGE_RATE_LEGACY,
+        .full_rounds  = ROUND_COUNT_LEGACY - 1,
+        .sbox_alpha   = SBOX_ALPHA_LEGACY,
+        .round_keys   = (const Field ***)round_keys_legacy,
+        .mds_matrix   = (const Field **)mds_matrix_legacy,
         .sponge_iv    = {
-            (const Field *)testnet_iv_3w,
-            (const Field *)mainnet_iv_3w
+            (const Field *)testnet_iv_legacy,
+            (const Field *)mainnet_iv_legacy
         },
-        .permutation = permutation_3w
+        .permutation = permutation_legacy
     },
-    // 0x01 - POSEIDON_5W
+    // 0x01 - POSEIDON_KIMCHI
     {
-        .sponge_width = SPONGE_WIDTH_5W,
-        .sponge_rate  = SPONGE_RATE_5W,
-        .full_rounds  = ROUND_COUNT_5W,
-        .sbox_alpha   = SBOX_ALPHA_5W,
-        .round_keys   = (const Field ***)round_keys_5w,
-        .mds_matrix   = (const Field **)mds_matrix_5w,
+        .sponge_width = SPONGE_WIDTH_KIMCHI,
+        .sponge_rate  = SPONGE_RATE_KIMCHI,
+        .full_rounds  = ROUND_COUNT_KIMCHI,
+        .sbox_alpha   = SBOX_ALPHA_KIMCHI,
+        .round_keys   = (const Field ***)round_keys_kimchi,
+        .mds_matrix   = (const Field **)mds_matrix_kimchi,
         .sponge_iv    = {
-            (const Field *)testnet_iv_5w,
-            (const Field *)mainnet_iv_5w
+            (const Field *)testnet_iv_kimchi,
+            (const Field *)mainnet_iv_kimchi
         },
-        .permutation = permutation
-    },
-    // 0x02 - POSEIDON_3
-    {
-        .sponge_width = SPONGE_WIDTH_3,
-        .sponge_rate  = SPONGE_RATE_3,
-        .full_rounds  = ROUND_COUNT_3,
-        .sbox_alpha   = SBOX_ALPHA_3,
-        .round_keys   = (const Field ***)round_keys_3,
-        .mds_matrix   = (const Field **)mds_matrix_3,
-        .sponge_iv    = {
-            (const Field *)testnet_iv_3,
-            (const Field *)mainnet_iv_3
-        },
-        .permutation = permutation
+        .permutation = permutation_kimchi
     }
 };
 
@@ -154,9 +140,8 @@ bool poseidon_init(PoseidonCtx *ctx, const uint8_t type, const uint8_t network_i
       return false;
     }
 
-    if (type != POSEIDON_3W &&
-        type != POSEIDON_5W &&
-        type != POSEIDON_3) {
+    if (type != POSEIDON_LEGACY &&
+        type != POSEIDON_KIMCHI) {
         return false;
     }
 

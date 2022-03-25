@@ -590,8 +590,12 @@ void test_fields() {
 }
 
 void test_poseidon() {
+    //
+    // Legacy tests
+    //
+
     ASSERT_POSEIDON_EQ(
-      POSEIDON_3W,
+      POSEIDON_LEGACY,
       ARRAY_SAFE({
       }),
       0,
@@ -599,7 +603,7 @@ void test_poseidon() {
     );
 
     ASSERT_POSEIDON_EQ(
-      POSEIDON_3W,
+      POSEIDON_LEGACY,
       ARRAY_SAFE({
         "df698e389c6f1987ffe186d806f8163738f5bf22e8be02572cce99dc6a4ab030"
       }),
@@ -608,7 +612,7 @@ void test_poseidon() {
     );
 
     ASSERT_POSEIDON_EQ(
-      POSEIDON_3W,
+      POSEIDON_LEGACY,
       ARRAY_SAFE({
         "56b648a5a85619814900a6b40375676803fe16fb1ad2d1fb79115eb1b52ac026",
         "f26a8a03d9c9bbd9c6b2a1324d2a3f4d894bafe25a7e4ad1a498705f4026ff2f"
@@ -618,7 +622,7 @@ void test_poseidon() {
     );
 
     ASSERT_POSEIDON_EQ(
-      POSEIDON_3W,
+      POSEIDON_LEGACY,
       ARRAY_SAFE({
         "075c41fa23e4690694df5ded43624fd60ab7ee6ec6dd48f44dc71bc206cecb26",
         "a4e2beebb09bd02ad42bbccc11051e8262b6ef50445d8382b253e91ab1557a0d",
@@ -629,7 +633,7 @@ void test_poseidon() {
     );
 
     ASSERT_POSEIDON_EQ(
-      POSEIDON_3W,
+      POSEIDON_LEGACY,
       ARRAY_SAFE({
         "a1a659b14e80d47318c6fcdbbd388de4272d5c2815eb458cf4f196d52403b639",
         "5e33065d1801131b64d13038ff9693a7ef6283f24ec8c19438d112ff59d50f04",
@@ -641,7 +645,7 @@ void test_poseidon() {
     );
 
     ASSERT_POSEIDON_EQ(
-      POSEIDON_3W,
+      POSEIDON_LEGACY,
       ARRAY_SAFE({
         "bccfee48dc76bb991c97bd531cf489f4ee37a66a15f5cfac31bdd4f159d4a905",
         "2d106fb21a262f85fd400a995c6d74bad48d8adab2554046871c215e585b072b",
@@ -653,130 +657,71 @@ void test_poseidon() {
       "cf7b9c2128f0e2c0fed4e1eca8d5954b629640c2458d24ba238c1bd3ccbc8e12"
     );
 
+    //
+    // Kimchi tests
+    //
+
     ASSERT_POSEIDON_EQ(
-      POSEIDON_5W,
+      POSEIDON_KIMCHI,
       ARRAY_SAFE({
       }),
       0,
-      "01ca17b5913ca7a42adfd9353676cd9a939effb71e3246fd78a2d9283c664529"
+      "a8eb9ee0f30046308abbfa5d20af73c81bbdabc25b459785024d045228bead2f"
     );
 
     ASSERT_POSEIDON_EQ(
-      POSEIDON_5W,
+      POSEIDON_KIMCHI,
       ARRAY_SAFE({
-        "df698e389c6f1987ffe186d806f8163738f5bf22e8be02572cce99dc6a4ab030"
+        "f2eee8d8f6e5fb182c610cae6c5393fce69dc4d900e7b4923b074e54ad00fb36"
       }),
       1,
-      "e7d279a184604c5ae038be9d7e62a23b75373825614f3b8175db6378e4fbc622"
+      "fb5992f65c07f9335995f43fd791d39012ad466717729e61045c297507054f3d"
     );
 
     ASSERT_POSEIDON_EQ(
-      POSEIDON_5W,
+      POSEIDON_KIMCHI,
       ARRAY_SAFE({
-        "56b648a5a85619814900a6b40375676803fe16fb1ad2d1fb79115eb1b52ac026",
-        "f26a8a03d9c9bbd9c6b2a1324d2a3f4d894bafe25a7e4ad1a498705f4026ff2f"
+        "bd3f1c8f183ceedea15080edbe79d30bd7d613b86bf2ba12007091c60ae39337",
+        "65e4f04ab87706bab06d13c7eee0a7807d0b8ce268b4ece6aab1e0508ec9c42f"
       }),
       2,
-      "5c3f7b7b0bd53a6713b23b5c84bc6842831acd1c6a322806706167f767ee360c"
+      "fe2436f2027620a11233318b55d0a117086f09674826d1b7ce08d48ad0736c33"
     );
 
     ASSERT_POSEIDON_EQ(
-      POSEIDON_5W,
+      POSEIDON_KIMCHI,
       ARRAY_SAFE({
-        "075c41fa23e4690694df5ded43624fd60ab7ee6ec6dd48f44dc71bc206cecb26",
-        "a4e2beebb09bd02ad42bbccc11051e8262b6ef50445d8382b253e91ab1557a0d",
-        "7dfc23a1242d9c0d6eb16e924cfba342bb2fccf36b8cbaf296851f2e6c469639"
+        "f5ea61ce47773495363dc4f6a41c3e2da14b13d6dd173acf87c9ca7357fb2400",
+        "f28573f49c658b4ba151e82ed0bd6aaab045311d1a72df58c21eed462bede018",
+        "73cf45c39285f17ccea99e0daeb547430cf7921218fe3726010f608e682a841a"
       }),
       3,
-      "e600482c4ef466db52ee02bf64cc9dd71a5a5e63eb94ff37033a10bce618a42d"
+      "9b1b94444a54af49a7623d1fe1ca72649f0a098daf5704925f024eb6ab0e4b3f"
     );
 
     ASSERT_POSEIDON_EQ(
-      POSEIDON_5W,
+      POSEIDON_KIMCHI,
       ARRAY_SAFE({
-        "a1a659b14e80d47318c6fcdbbd388de4272d5c2815eb458cf4f196d52403b639",
-        "5e33065d1801131b64d13038ff9693a7ef6283f24ec8c19438d112ff59d50f04",
-        "38a8f4d0a9b6d0facdc4e825f6a2ba2b85401d5de119bf9f2bcb908235683e06",
-        "3456d0313a30d7ccb23bd71ed6aa70ab234dad683d8187b677aef73f42f4f52e"
+        "4c28b87198e0012207f93cdbdaa35355ec8213fa97a60e62701f62602d465920",
+        "0787a40fc046c4dd0ff3cad0e54006577fece871c774707494984f1c7d334727",
+        "1504ffe48e4e6dfcc4ded439edd386cf271b69d94afae83079f3ee3e7c04d52d",
+        "290b6506516fe7588b5100f8db2e871427c6d74e7a60ab656f43dd9bc687c312"
       }),
       4,
-      "14278226e4fa816ef6444773268a8cf10c84ac3b8e7a62323f2f768a6d6c8537"
+      "47ecd3bf2eed86dcf8d2cef3d7667104689dba4d9bcb54006e0c66f6ec8c5a16"
     );
 
     ASSERT_POSEIDON_EQ(
-      POSEIDON_5W,
+      POSEIDON_KIMCHI,
       ARRAY_SAFE({
-        "bccfee48dc76bb991c97bd531cf489f4ee37a66a15f5cfac31bdd4f159d4a905",
-        "2d106fb21a262f85fd400a995c6d74bad48d8adab2554046871c215e585b072b",
-        "8300e93ee8587956534d0756bb2aa575e5878c670cff5c8e3e55c62632333c06",
-        "879c32da31566f6d16afdefff94cba5260fec1057e97f19fc9a61dc2c54a6417",
-        "9c0aa6e5501cfb2d08aeaea5b3cddac2c9bee85d13324118b44bafb63a59611e"
+        "da99182b35f2cd9f8a137052c4262576377a16deb83652db459a74893a0cf73c",
+        "9805573990c4028292c9db171cd2b97902f9fc494983f6f7e0a0c184bc55df1b",
+        "90ff1001b9dab21358aad1f6b7906a56d0c039502c1590c3ef9921a8951e4409",
+        "88b56238a0eda34576db959fecd1c3790bb5311fdb231753243c5085974a5b37",
+        "896a7727e511a4c30d99082bf3542623fb702afab0b62ebbf301ed51e38f6812"
       }),
       5,
-      "9775860a0bfff072224efdc657c239a81526ba2d4a46d95925bf868b7672d02b"
-    );
-
-    ASSERT_POSEIDON_EQ(
-      POSEIDON_3,
-      ARRAY_SAFE({
-      }),
-      0,
-      "87b24ed3fe1f35af6497c504acd6de35f06bd9c2e2490a1b5012715719de8d05"
-    );
-
-    ASSERT_POSEIDON_EQ(
-      POSEIDON_3,
-      ARRAY_SAFE({
-        "df698e389c6f1987ffe186d806f8163738f5bf22e8be02572cce99dc6a4ab030"
-      }),
-      1,
-      "d2f75185842484ba5a1a4e0ba5f3870ed48782cc4f89a8228f5eaf75e1833906"
-    );
-
-    ASSERT_POSEIDON_EQ(
-      POSEIDON_3,
-      ARRAY_SAFE({
-        "56b648a5a85619814900a6b40375676803fe16fb1ad2d1fb79115eb1b52ac026",
-        "f26a8a03d9c9bbd9c6b2a1324d2a3f4d894bafe25a7e4ad1a498705f4026ff2f"
-      }),
-      2,
-      "922d4e7f5802aee157ae13afb8c7a4aadca06913b9d36a9d1f20f5edb70e2c30"
-    );
-
-    ASSERT_POSEIDON_EQ(
-      POSEIDON_3,
-      ARRAY_SAFE({
-        "075c41fa23e4690694df5ded43624fd60ab7ee6ec6dd48f44dc71bc206cecb26",
-        "a4e2beebb09bd02ad42bbccc11051e8262b6ef50445d8382b253e91ab1557a0d",
-        "7dfc23a1242d9c0d6eb16e924cfba342bb2fccf36b8cbaf296851f2e6c469639"
-      }),
-      3,
-      "1879e13397b27ddec5fcdfb50183d106744368525494afcb256c8207129a103d"
-    );
-
-    ASSERT_POSEIDON_EQ(
-      POSEIDON_3,
-      ARRAY_SAFE({
-        "a1a659b14e80d47318c6fcdbbd388de4272d5c2815eb458cf4f196d52403b639",
-        "5e33065d1801131b64d13038ff9693a7ef6283f24ec8c19438d112ff59d50f04",
-        "38a8f4d0a9b6d0facdc4e825f6a2ba2b85401d5de119bf9f2bcb908235683e06",
-        "3456d0313a30d7ccb23bd71ed6aa70ab234dad683d8187b677aef73f42f4f52e"
-      }),
-      4,
-      "415aab36a9011fa8218bd67be746c7a8fd9ba83d01d1ca669574c60caef12d30"
-    );
-
-    ASSERT_POSEIDON_EQ(
-      POSEIDON_3,
-      ARRAY_SAFE({
-        "bccfee48dc76bb991c97bd531cf489f4ee37a66a15f5cfac31bdd4f159d4a905",
-        "2d106fb21a262f85fd400a995c6d74bad48d8adab2554046871c215e585b072b",
-        "8300e93ee8587956534d0756bb2aa575e5878c670cff5c8e3e55c62632333c06",
-        "879c32da31566f6d16afdefff94cba5260fec1057e97f19fc9a61dc2c54a6417",
-        "9c0aa6e5501cfb2d08aeaea5b3cddac2c9bee85d13324118b44bafb63a59611e"
-      }),
-      5,
-      "9d69ee732cfe073cc9417aef734293002c8db0c69b1e814cfa7a858e7c995d33"
+      "09a2d55277908b7c8214f745b3605f0f9055dcd4c9b594cdd759292c34c3a20c"
     );
 }
 

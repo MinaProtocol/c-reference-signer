@@ -1,0 +1,328 @@
+#pragma once
+
+#include "crypto.h"
+
+//
+// Kimchi Poseidon hash function parameters
+//
+
+#define ROUND_COUNT_KIMCHI  55
+#define SPONGE_WIDTH_KIMCHI 3
+#define SPONGE_RATE_KIMCHI  2
+#define SBOX_ALPHA_KIMCHI   7
+
+// Round constants
+static const Field round_keys_kimchi[ROUND_COUNT_KIMCHI][SPONGE_WIDTH_KIMCHI] =
+{    {
+        {0xd7224f9b885cd4e9, 0x6f184251a7e022f2, 0x5530ffaefe8a2dab, 0x212f41bcc627c1c7},
+        {0xdbac75839aab548, 0x48bdc759224af0f7, 0x7f74df5c7e415974, 0x38802be08741ddca},
+        {0x6ec8aa7dbc354604, 0xbdb0bd302c2b34f, 0x6503db31b38012e1, 0x2433c8af8edcca1f}
+    },
+    {
+        {0x391b4acdbd74de16, 0x89752a3b85e5f70c, 0x4de0d49e1cbcc73d, 0x169a605fddd5c179},
+        {0x647338998795f8a8, 0x4112851514957886, 0xf057665faab5d64e, 0xd2fe01f52a3d6c},
+        {0x4e4f130494a7dc4a, 0x8f027abdb8b4dad, 0x441f279e90c741ed, 0x2765ba91dd72ebc4}
+    },
+    {
+        {0x69bf6adc389dd715, 0xe0db3b8884a5e43a, 0xc189526e42b4279, 0xcc0e2371b2a3427},
+        {0xe7fa9ebf5e5ab5ad, 0x6e3f1b2fb0b84422, 0xe0bc4bb94d608e14, 0x18e83028bf36f4cb},
+        {0x75d81961de7db580, 0x4f01ef6fb99f9fa2, 0xfcf2c80fbfaccfaa, 0x39cdc5086462e2c5}
+    },
+    {
+        {0xb63d35f4eede2bdb, 0x4ea05c2ebcc6e912, 0x907793b609e958b5, 0x3dd8cb60b7e7ffe9},
+        {0x4af3ceb32dbd2fca, 0x51caf0fe97701a4e, 0x29620541c08ea3c8, 0x1af29be63ea872a5},
+        {0xeb6237578e844825, 0x591e2679bc442a05, 0x19e3db544b315893, 0xb660efa8382c086}
+    },
+    {
+        {0x479e7dc5b7966765, 0xd2e042c933b9c668, 0xb6b295c13b4b8469, 0x2f6431e6a9efa904},
+        {0x145859422d6549ff, 0x1ae0c7f29d6edb94, 0xe817503993d3ed0, 0x28795dc3fb79088c},
+        {0xfdb2f2a75560a565, 0x197a15efab1546e7, 0x4c81b28f2d6e0817, 0x3692bade72def0e}
+    },
+    {
+        {0x78261f0ce12b9ca6, 0x3518ec95a82c2bbb, 0x354dd49e21808301, 0x1a5e42a2281e60ee},
+        {0xfa29764992673335, 0x81d90c52e77963f0, 0xcaee3ac46c9f7eed, 0x36511417788a37c3},
+        {0xff981e12b5ab2174, 0x11d5a007aaa2553, 0x7537b99ec4b0529a, 0x3c27a566d94b7d68}
+    },
+    {
+        {0xd7a144d486ef7427, 0x800302de15a61452, 0xbb84acdf40aab804, 0x2412938b377579db},
+        {0x3a466d596b50141, 0xf5b86c36d0184c70, 0xcf870caa4edc35ed, 0xa09c069876bc1da},
+        {0xe61f893fe4644411, 0xb8cebb4f6ce06e4f, 0x137a4d087448b13a, 0x3375efd35228a3a0}
+    },
+    {
+        {0xec9bd6d140fd702b, 0xcb94b073ff362583, 0x26e9537af72c816d, 0x2550ee3fb78caf95},
+        {0x4b6efd9ccf09f8f9, 0xac19697a0d9bdd20, 0x7683190e98a8424e, 0x27dac831d1f7822d},
+        {0x2d4225282e866cb9, 0x122c3c1e13ba7467, 0x8c36aa7ede7930ab, 0x4ef204b4debf9d4}
+    },
+    {
+        {0x187e74e4b435b82a, 0x13ce9e601cb0ef7e, 0xd363fdf5fc09ab4, 0x109c640a2065a21a},
+        {0x1c43704ca154a75b, 0x9824646aacb71eed, 0xe54e7cca326f015, 0x321ae16c5cb83dec},
+        {0xf5e7b0509e39d104, 0xf50f968c38882e94, 0x3ad954ba21355824, 0x2b72f0100b5d544d}
+    },
+    {
+        {0x329e1a415741b0cf, 0x9922f1dda8a9441a, 0x4806e82625ae5b75, 0x29f1eadb1cdd088b},
+        {0xb7a684298c629472, 0xa319f866ac92001d, 0xb77f67d62e142b37, 0x154c2e1192279489},
+        {0x5226235e1977ecf8, 0xdb3c8b6c7eb25564, 0x65f2954123a0ee9c, 0x1fe6963ec0c1f827}
+    },
+    {
+        {0x658857fea3efcc56, 0x5955b127b188bd00, 0x650703d7651995ec, 0x2b5c693993d2d4d1},
+        {0xafa39159c5de7896, 0x88ac0f5656b1232b, 0x3b6a3fd17b8a0716, 0xd71ae3f5ea2098b},
+        {0x999af600ce765033, 0x5a059a92da0bea2f, 0x7db04a176b09b068, 0x2c49a1d56ff06de6}
+    },
+    {
+        {0x5d3937166302f69e, 0x9168ba507448754a, 0x51bdac7c81872193, 0x317b2bd7538a6112},
+        {0x5f439efe5d98a388, 0x9c653f6a481934ec, 0xf16c2dbe046fc914, 0x35fc75f17b1fec2e},
+        {0x83a6cbec09429717, 0x1bdd9e451f38b5ea, 0xe9edcb17d801bd12, 0x1867aa6b8639bc09}
+    },
+    {
+        {0xba89864996040769, 0xb241fb038d8d3b4e, 0x2697902d40dd6c59, 0x2b37e76e49b2f27},
+        {0x310edcf327fe854, 0xdcb562069ad16584, 0xd1ae33bb8eb4f96d, 0x36eaf55b629d4903},
+        {0x25ec6dc62e9ebf40, 0x864637247b8307f8, 0x6783eb87a174be06, 0x275a433c455f73ba}
+    },
+    {
+        {0xda95cb4c768f30e0, 0xc412395d72088f98, 0x69f3518e3b128b7b, 0xaa0cf04c3756eca},
+        {0x4287ef01060d631, 0xdc3c7155b31cc057, 0x628524f6ee6f43cc, 0x3e9d920a634ebca6},
+        {0xf6f7871dd7fbcd00, 0x1c9c74ddedb0c58, 0xe7d3014ef7c5a605, 0x2538762e07fc8ad6}
+    },
+    {
+        {0xd66f1f5cd73f7a3d, 0xf71ebc5f7eb4e6af, 0xefb483acc7081d33, 0x2b83c6bf53c5007f},
+        {0xc477be55f2c3541d, 0x3bfca37ce3ff7992, 0xb12b540936f70164, 0x12322090123f9f63},
+        {0xe2c4dc42e230ff87, 0xff4297f793268f92, 0xcdcbbe7d7c53af6, 0x32e86ced32d6713f}
+    },
+    {
+        {0xa07a8812602ce562, 0xaf43924dd041a185, 0x1d3bafac2f18ff76, 0x3958391dbfc37a45},
+        {0x658530ca03040f72, 0x26be4ceaa5d160c0, 0x77e56523367cd3cf, 0x11a3a3175b3c88a5},
+        {0x8cf282c4212333bb, 0x5d21c1229609ef72, 0xb8a14aea230be8d0, 0x26e9f8c0273893df}
+    },
+    {
+        {0x17a81633111c07b1, 0x3d98c00901827fac, 0xd87f6fd121614825, 0x129d8bf5683cc590},
+        {0x47d931806039d6a6, 0x216e7995a46ea96, 0x3aa3d43bcbd2ca7, 0x1a11f516a8670f34},
+        {0xf400c4813ea854a9, 0x70d3e4f5900d342e, 0xa84b3038d9f28ddb, 0x13ffe1963af76315}
+    },
+    {
+        {0xf41e89ead5a316f3, 0xb62e894807a230fb, 0x99140aec5101d5ec, 0xfa0c8066d6b0e10},
+        {0x3d739227b3e1fbef, 0x69f5cb23205228ef, 0x13c98d3b3fb3fe11, 0x311559bb4cbd95fc},
+        {0x909e8e3264195af, 0x7a6246622e57dc09, 0xf50e879364d52365, 0x5694726edc78165}
+    },
+    {
+        {0x1ce0e383d3a827c2, 0x27956fe4826988d7, 0xaba62b5aa3468f5, 0x274fc52d65f05c8e},
+        {0x7da1afcc87d92b2b, 0xa9c2552155f24b67, 0x3159d0941d38650f, 0x30a98d7597fe9d2f},
+        {0xe54ac8e1829e561e, 0x483597ea5898a540, 0x9171c568f5179969, 0x2c382faef3908bb1}
+    },
+    {
+        {0xcb3a1700f2ee25c9, 0x3e441eda4b84ebf6, 0x9c1481ad19c80084, 0xbe06b151ac025aa},
+        {0x7889503f42de544b, 0xbeba2638f12f21ed, 0xc24e0f6d1ea184f6, 0x1c77bc54d9a98456},
+        {0xbca31d6d3b283558, 0xaf587a0f4c2a3bdd, 0xfec5b16c41c2cfe0, 0x2856db610a842287}
+    },
+    {
+        {0x9e64f3f3fc39a9f3, 0xd5f3f0ec8688ed68, 0xb1106396b64940b3, 0x45a9528ab246b5d},
+        {0x7de9523452d2ca85, 0x1330501c6f3cd188, 0x74d58c1b5409f554, 0x24250fc3268a8e40},
+        {0x5fcabd5482c40cd4, 0x30d7a3903e973d4, 0xf21e4ce3f3a0a29e, 0xdd93102f7588d4c}
+    },
+    {
+        {0xf54c52d0d24e22b4, 0xa42646bd537bcad0, 0x69239e93401d3dbd, 0x79584079919cb43},
+        {0x80a7c42876527615, 0x24f07001af3b7440, 0xa0b6785d21ab3917, 0x245aeaaaf8cb48d6},
+        {0x4909c984b9943d17, 0xba34761c6878de7a, 0x401dddc79ee666a4, 0x1397ede0bb29de98}
+    },
+    {
+        {0x8242a8b8d7051633, 0xde3e82ab47156152, 0x1eac41d9df1e985, 0x361697f9732f42d3},
+        {0xbb0acffe1c00e564, 0x619d65b28cca3ea5, 0x765f290da092a0fe, 0x8b6b0b716521051},
+        {0x52a4d1b7278aa8fa, 0x4add1d73ac56852c, 0x3adc6725284c69e3, 0x8b6e3846e6ad5c}
+    },
+    {
+        {0xe1da66320737a727, 0xc3a4192b0350a216, 0x87786f5e28f10d77, 0xe4cae0d38765b5},
+        {0x5db96966a647a6, 0x7ba46add43bbdcb5, 0xfca32056cc0193d1, 0x19920eb49d805e7},
+        {0xfb82d376d9d7848a, 0xfbfc3a2821f64010, 0x8780632f1a866b6, 0x60e062c96bdf432}
+    },
+    {
+        {0x9994e15ea25850a9, 0xf39d4a3c99a453a7, 0xdf10497f97b2b8a2, 0x3a2de3ff4580db6a},
+        {0x2e3cf07dfe11e399, 0xe29594038c7c10d6, 0xe3e51d7d088edce1, 0x1969c76e480d9dfb},
+        {0xbb363096272c98db, 0x8e71903d98e965fd, 0xfff17dd64520d39b, 0x1497e4ed6e3079c}
+    },
+    {
+        {0x95a6e94983b6fe1c, 0xafa24cd316db28f1, 0xe417ecc383a4d385, 0x1335efa976ba057b},
+        {0x88b74d8bd42458c3, 0x94ffb7c42eeea7b8, 0x77330943c09c110, 0x2968c794f9fdf13},
+        {0xa99b1c6349f4e68b, 0x9c43daa06fa55800, 0x26a22748231bcf4b, 0x22c9e0c3bd1ff4c9}
+    },
+    {
+        {0x979f0b4d3fe8b9d9, 0xb921c309295c897d, 0xd010a6f36eea4a66, 0x34839bd6705a679d},
+        {0xf35d5c148d0dfa64, 0xb186bd40aecbaada, 0x3ccf0e64c8060e5b, 0x18999517f676471d},
+        {0x3d68b7a359a7c22, 0x7d50d0cc6a8f1b20, 0x186febdb22b63236, 0x3d8de65293045a3a}
+    },
+    {
+        {0xf12fe7cc6a1e0456, 0xb14b8ef0d55d158b, 0x1ffbe315b27ee18, 0xc9dcf99217c419e},
+        {0xf70fb5d132142ad9, 0xf24f021a5997c5a8, 0x185514c3b16120bd, 0x3da7d3bf1ec367fd},
+        {0x11ffd9dea48ec8dc, 0xbe81c3e343c6abb9, 0xf10c07e9a272961c, 0x227a5cb0b2bc62ca}
+    },
+    {
+        {0x80dd735fe1125e80, 0x9d7f8eb7080e187f, 0xfc9675f5c1cff43a, 0x2233b40ffead67db},
+        {0x8f30e0adeeacf72c, 0x9a01c2ad1e6b5efe, 0xe9136fdafc01d9ac, 0x3ff38446df40ebcc},
+        {0x3fd08162c8ad91ec, 0x3590734148b80013, 0xf9470b3d5f4449b9, 0x2b78c0d109098434}
+    },
+    {
+        {0x22452bca13c9bab6, 0xd87f5eb0ad2871e7, 0xa7d91dc1fa2687d6, 0x2bbbb642f02fb825},
+        {0x56cfcff943cc7570, 0x721291f54edf7233, 0xe15a1bd6a6a22c1f, 0x2e112f7fe8cbe1b6},
+        {0x9a08155aeb597c17, 0x5c7ee7061bb4f5d, 0x53771ae4feb55673, 0x16abd11c46f8f05e}
+    },
+    {
+        {0x2559cb0e4256a51f, 0x22a199c691876893, 0x7723c8a2179031e1, 0x19ff30f0421db32d},
+        {0x27abdb8def172fdf, 0x408927d76f6c64f, 0xad05001ebe6a2a91, 0x10ba2ba680f31507},
+        {0xbdae03cb2e159737, 0x789c8f2acf1d73e8, 0xbbd917ab358f9b0d, 0x2adff62dc1a1e53c}
+    },
+    {
+        {0xf79399484dd4ef51, 0x29cd7faf21ae6658, 0xc16e00817d2126f9, 0x1c4b639bdd16f068},
+        {0x128f3b8a5b2c0a24, 0x429baf09d3ad6c29, 0xd456b224f02006b3, 0xb3d0963af4a6765},
+        {0x98d32b090ca6d54c, 0xa40ffe300579ee78, 0xc3d8a3a0ce4516a6, 0x3662321a1ace5a92}
+    },
+    {
+        {0x11d764461fdc0db7, 0xa178f24159c3118a, 0xce6d2e58b6d15928, 0x1f6cc0bff3cbc23},
+        {0x55c2ddfced5efde3, 0x15a71c96448a3bc1, 0xcf8af251ea59f805, 0x4464d2b0491a6d4},
+        {0xb65c6e6af7e5ba5f, 0x91cfb48231144d9, 0x934f2002a855da67, 0x13d181c4b9431d1f}
+    },
+    {
+        {0xbb7f548b3e5be6eb, 0xa8491e6f1b601a73, 0x2663afa251ef02d7, 0x2c5068a0667e573d},
+        {0x6f550122df111552, 0x32f0a736506e1bed, 0x8a3153e9c3ffe577, 0x1df43a3774a4b103},
+        {0x49da4e721d735370, 0xe62b8c6d12c20752, 0x4a484263030c869e, 0xd67f27d5c88deb4}
+    },
+    {
+        {0x1ae009dfc730897e, 0x59f0c0a5e93fd42b, 0x34e79c854d833b70, 0x1c2ee21ada464b30},
+        {0x2f3a31d16e6ade20, 0x59e22658d9e81c8e, 0xc52b91690bd1c01b, 0x3bf0a6ed127d8185},
+        {0x75becd5e6e8dbe9e, 0xbd52d244b510c129, 0x3cc0d72e6b03b4ec, 0x2d14e26d3f995694}
+    },
+    {
+        {0xd50e27b45ecc8cec, 0xfa8204132d7311c8, 0xa974e29b2d9ca483, 0x235ac5519ef3662f},
+        {0x306ec1a907a3e2fd, 0xbbb2012f5314d851, 0x13c83e0057f7aa54, 0x149b125f74260cb3},
+        {0x7caebae821737571, 0xe574f62d3a46a1f7, 0x2d5a49ca5961be34, 0x28c75d7378cefda8}
+    },
+    {
+        {0xec7ac0d48503cbd0, 0x3fe35c3c2f94e840, 0x98ef447993815cd7, 0x16802bdd61277779},
+        {0x199c37a58750cbb0, 0x4ccf6360fe387b1, 0xc1d4d6518fc2ccbd, 0x1e8b3a2934733db7},
+        {0x5426cbc3b7010c1, 0x79625e77ed76ed04, 0xde3fb82d1bc01fc8, 0x3ad0d866d117069a}
+    },
+    {
+        {0xd6fb888f20563b99, 0x635ee80e82224768, 0x490c43bf65924697, 0x25f48f9f5879e500},
+        {0xbb4d42cc63bbda88, 0x1ba8eafa4d3752a6, 0xa8f7312cba80dac5, 0x2cb3dd7e5c510289},
+        {0x1bfcc2c9a874e503, 0x8c79156da1f88f94, 0x107db7b7b2e36c67, 0x22135b6d348540b4}
+    },
+    {
+        {0xe0180086c38694af, 0xf68cbde456493fdb, 0x8d6582ba32fed801, 0x26273290512ac324},
+        {0xea8b96300060790b, 0x701cbb709095bd19, 0x12ee5eaad4132b19, 0x28eb51465f4923e},
+        {0x5552718d72adc440, 0xa8dd2d67c4234b26, 0x7a2caf0158d109ac, 0x30b1cbc7809a62e}
+    },
+    {
+        {0x99c565f9a7454263, 0xb31a8fe27b361acd, 0x13a1cbbc42c0503d, 0x299ffdba3c04e7d8},
+        {0x3fe27098e2c3f04a, 0x7c5d93bc04eee958, 0x562e3fe642af3bc0, 0x37b28b42f16c7d96},
+        {0x54a5504de282032b, 0xe02d9c0ae50a869e, 0x6aaac50bc351b9f3, 0x35bf4cfc12874407}
+    },
+    {
+        {0x61a3067a7a466c2a, 0xecc9f62eb3a94e8f, 0xe3292f0114b7f6d2, 0x354cff98121d7484},
+        {0x6fa4eb942ac1b8aa, 0xc10751ca8785f080, 0xd6ab91f6a237a1aa, 0x348628fb95f7213b},
+        {0xf8433112b6df4ee1, 0xf99b3d523405b3ba, 0x4604a9b2de2dd97d, 0xfdb22ce81aed5fb}
+    },
+    {
+        {0x5bb2d7c6b0698afe, 0x1db4d59a71ebe0ca, 0x2e11c45a6c4c4eab, 0x823b362b22fded6},
+        {0x3ec1341ab2aca12a, 0x903e5b790b294e57, 0x2100a1e855b2b04b, 0x28d8620c8ade40a3},
+        {0x3e058487631f556f, 0xe8ae8e11c11744c1, 0x2451a070be1ad48e, 0x23cb5292c4f7f85b}
+    },
+    {
+        {0xe6cda705c0e253fa, 0xe77bb9b33787d91a, 0xfbf56a3666bb74f9, 0x34fb17092af22e57},
+        {0x355c4ab0c151bc5a, 0xbae26fcea813094e, 0xeb1af730859b31f9, 0x130f19a90368c2f9},
+        {0xea774244c3f48ed1, 0xae71d2f6ad9f52e7, 0x7853697cf69a3a29, 0x184e2762ffb6963d}
+    },
+    {
+        {0x344be8be015e56c3, 0x7161ded8fecd8ad8, 0x36c89ed03709d6c0, 0x19411ba2c97c6ee0},
+        {0x8138f748684e0b3a, 0xf589d67054e94f36, 0x22201468e9ef2e26, 0x85aceb8468f6f4e},
+        {0x9860ddc2f278ef5a, 0x5afb80caab16581a, 0x66d1fe6976463db2, 0x1b19308a23332240}
+    },
+    {
+        {0x6761d4c2d4f5124c, 0x62d20433d613726d, 0x5f9e83fbfad883cb, 0x2cb3d9ff53b29310},
+        {0x318bc22e1d5738ee, 0xf14c8382592ce1c0, 0xb05fe6efaed7a9d8, 0x3ad8380b3010bde1},
+        {0x6081c0541f89d4cb, 0xe41a8a761f41f04b, 0x73462439e4f6c422, 0xf9146442b66b614}
+    },
+    {
+        {0xc19bd14634d500b9, 0x5c163fa01c378ad9, 0x7f3cc22ab0cd0dcd, 0x2c3f0d84401ec1a3},
+        {0xb8174600a4ecfccc, 0x91770fd40a13ee7b, 0xf15d873b7a29e653, 0x189d7b702b0766db},
+        {0x333ca79ba30bd767, 0xc0e5b7236687ef79, 0x69580594f7129f76, 0x2d1009ce7a64c6c3}
+    },
+    {
+        {0x7cd1c8704a939224, 0xe427eae72576fd85, 0x749f2202808767f1, 0x1fdf2ef8727e3816},
+        {0xf6b27e3e1beaffad, 0x51a5c37c0b3c0b87, 0xb5a84b969a698927, 0x1333fed401556cd0},
+        {0x7fdc3ee4f7257845, 0x9dc63383c68cce80, 0x97e4b5f39caa3b0f, 0x3b497620e0adf1a5}
+    },
+    {
+        {0xd1fec543ca77f207, 0x1949aa3c32bb9072, 0x1bd11992845c157, 0xac09971d98ea5ee},
+        {0x85bd613ce7d57063, 0xf98d8b8410254bb7, 0xba3fc6ee07f4af39, 0x2d7b54b11122b1d},
+        {0x96b457fe4820b177, 0x4cc20977dccf6da9, 0x57002472ef5bd8d7, 0x5d35fc3443262de}
+    },
+    {
+        {0xe6a1e6b0bf56c39a, 0x5f0fa56e02b52bf1, 0x892cb6b226eba63f, 0x9d6cdf753348972},
+        {0xd971e91c989d7474, 0xe50253ac0fe22673, 0xc3d129d61f3e2d2e, 0xc3d5e5747f41867},
+        {0xd167f5fb9c5beeed, 0x3f5cea239ef8c0d7, 0xcdee8cfc27846f4a, 0x24c679ef24b061de}
+    },
+    {
+        {0xad85899bc3db81fd, 0xeb233c07600fb897, 0x89f5eb6243c1b2c3, 0x1f3a8367c8aa8517},
+        {0x6d36bca7fcec3e0e, 0xc1737ff03d1ab393, 0xadccc72bbbbc7a45, 0x3db8f2e90ccdd8c8},
+        {0x717b51af8aaa8e01, 0x511486052600a48e, 0x4640f747a52c8046, 0x7617093f8e50308}
+    },
+    {
+        {0x7b7ea2d90c18ddff, 0xad55e3af10f07ecc, 0x3141081a3c5c8385, 0x196eb50d61121358},
+        {0xcc60e0cfd84379cd, 0x7c3511d0a77f4548, 0xda8925e203fca7b4, 0x913f6db8fb4666c},
+        {0xdc9424e57fe5d233, 0xeebf53528158a77f, 0x4aba101d58382099, 0x1d9d7555ba95fd2c}
+    },
+    {
+        {0x223a1f075f09c126, 0xe53c2bd3bb82086c, 0xc926e1a6742d9f28, 0x37a94c909c28a463},
+        {0xf686edf138fae20d, 0xcf8127255d41ad5f, 0xaaff6a3f5e4fca37, 0x271575f3199de25b},
+        {0xe56d4164299c073, 0x949dad529240515e, 0x492fad4fff845faf, 0x1f4ae85148dc4d36}
+    },
+    {
+        {0x88d7bc19b11f7d81, 0x5409527a4303bddc, 0x819f1fcde6fe8277, 0x3f1783d329385861},
+        {0xa0fc55787106d0e5, 0xeff61aed031a068f, 0xf2028db3e72ef3f5, 0x3723089287b22d50},
+        {0x4b2fa444ab4d0eb0, 0x7501d8bdd86b94fa, 0xc115eb42e5c68821, 0x3af0eb723bcbdf62}
+    },
+    {
+        {0xba360ab89c61e415, 0xaf79f26388cc899d, 0x9520ac3e754fa7c, 0x21421c939a61c9c1},
+        {0xe1574f78d928be85, 0xbeaf8a96e41e11cd, 0xc6fe2d415b79aaaf, 0x658c8be312e3365},
+        {0x7c93afce4237274c, 0x18ce430d1aaf175a, 0x12f33db44b4df014, 0x97dcef6c06d9bdb}
+    },
+    {
+        {0x828680253ff92f89, 0xde548e1c3824e40e, 0xc247914b9ed7bc21, 0x2e2ed0c7599fbaf7},
+        {0x4aa809d0c384c711, 0x6c10c3a79992f7b7, 0xeff44bf1c0bdb977, 0x2170102b79c7ff15},
+        {0xbeb3ef5c6a1a5a3c, 0xadd3357fded8ea40, 0x883e182ae49ddd5b, 0x98e5471c82acc69}
+    }
+};
+
+// MDS matrix
+static const Field mds_matrix_kimchi[SPONGE_WIDTH_KIMCHI][SPONGE_WIDTH_KIMCHI] =
+{
+    {
+        {0x2325ecd774ed5ef5, 0x6e29dac6a3c7cdd1, 0xe5beb6083a511912, 0x9676da44236aeec},
+        {0xd158dc717e2341f, 0xd5b60b1769712b4c, 0x34d7bcabfd238085, 0x3aaab5076493084b},
+        {0x2db4797d83bbe920, 0xd5fa286de1eee5bb, 0x9314978726295ccf, 0x15cd8c594785dab7}
+    },
+    {
+        {0x32d91577cad91dd4, 0x4e514bd4657b8720, 0x6ee3bb5668a0c9d2, 0x309fc724fced8fea},
+        {0x3924fab19a332e56, 0x54bbe6a6de98bb83, 0x192e0f01cbe529aa, 0x37dd7f40c9e278a6},
+        {0x90375eecbb700545, 0x9e03af8b6798305b, 0x7268fdbab4425d88, 0x1920c1db7e389489}
+    },
+    {
+        {0xd3313a8f123a9839, 0xba5f1ab180bf05c4, 0x1b03c308f53c2809, 0x30fc1b2d695ffb7},
+        {0x6030e8f639f0053d, 0x7f4aa2b8ff664e1, 0xb6c871de94e5901a, 0x33f6c27d988f8ed4},
+        {0xce58b7ee05c5c11d, 0xa5a7c6efdbd7f41e, 0x5dc94477718966ee, 0x3971be44ca4bbd36}
+    },
+};
+
+
+// TODO: Initial sponge state testnet
+static const Field testnet_iv_kimchi[SPONGE_WIDTH_KIMCHI] =
+{
+    {0, 0, 0, 0},
+    {0, 0, 0, 0},
+    {0, 0, 0, 0}
+};
+
+// TODO: Initial sponge state mainnet
+static const Field mainnet_iv_kimchi[SPONGE_WIDTH_KIMCHI] =
+{
+    {0, 0, 0, 0},
+    {0, 0, 0, 0},
+    {0, 0, 0, 0}
+};
