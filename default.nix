@@ -8,7 +8,8 @@ stdenv.mkDerivation {
       make clean libmina_signer.so
       '';
     installPhase = ''
-      mkdir -p $out/lib
+      mkdir -p $out/lib $out/headers
       mv libmina_signer.so $out/lib
+      cp *.h $out/headers
       '';
 }
