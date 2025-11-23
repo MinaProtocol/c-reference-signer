@@ -136,6 +136,10 @@ bool generate_address(char *address, size_t len, const Affine *pub_key);
 void sign(Signature *sig, const Keypair *kp, const Transaction *transaction, const uint8_t network_id);
 bool verify(Signature *sig, const Compressed *pub, const Transaction *transaction, const uint8_t network_id);
 
+bool sign_message(Signature *sig, const Keypair *kp, const uint8_t *msg, const size_t len, const uint8_t network_id);
+bool verify_message(Signature *sig, const Compressed *pub, const uint8_t *msg, const size_t len, const uint8_t network_id);
+bool verify_message_string(const char * sig_raw, const char * pub_compressed_raw, const char * msg, const size_t len, uint8_t network_id);
+
 void compress(Compressed *compressed, const Affine *pt);
 bool decompress(Affine *pt, const Compressed *compressed);
 
