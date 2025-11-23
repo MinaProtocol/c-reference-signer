@@ -1,3 +1,5 @@
 *.o
 reference_signer
 unit_tests
+*.so
+*.a
