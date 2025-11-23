@@ -19,8 +19,8 @@ unit_tests: $(OBJS) *.c *.h
 	$(CC) -Wall -Werror $@.c -o $@ $(OBJS) -lm
 	@./$@
 
-%.o: %.c %.h
-	$(CC) -fPIC -Wall -Werror $< -c
+%.o: %.c
+	$(CC) -fPIC -Wall -Werror -c $<
 
 clean:
 	rm -rf *.o *.log *.so *.a reference_signer unit_tests
