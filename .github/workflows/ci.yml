@@ -1,0 +1,76 @@
+# CI workflow for c-reference-signer
+#
+# Run locally with act (https://github.com/nektos/act):
+#   act -j build-ubuntu --container-architecture linux/amd64
+#
+# On Apple Silicon (M-series), always use --container-architecture linux/amd64
+
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-ubuntu:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler:
+          - { cc: gcc-11, cxx: g++-11 }
+          - { cc: gcc-12, cxx: g++-12 }
+          - { cc: gcc-13, cxx: g++-13 }
+          - { cc: gcc-14, cxx: g++-14 }
+          - { cc: clang-17, cxx: clang++-17 }
+          - { cc: clang-18, cxx: clang++-18 }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install compiler
+        run: |
+          sudo apt-get update
+          if [[ "${{ matrix.compiler.cc }}" == gcc-* ]]; then
+            sudo apt-get install -y ${{ matrix.compiler.cc }} ${{ matrix.compiler.cxx }}
+          elif [[ "${{ matrix.compiler.cc }}" == clang-* ]]; then
+            sudo apt-get install -y ${{ matrix.compiler.cc }}
+          fi
+
+      - name: Build and test
+        env:
+          CC: ${{ matrix.compiler.cc }}
+        run: make
+
+      - name: Build reference signer
+        env:
+          CC: ${{ matrix.compiler.cc }}
+        run: make reference_signer
+
+  build-macos:
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler:
+          - { cc: clang, cxx: clang++ }
+          - { cc: gcc-13, cxx: g++-13 }
+          - { cc: gcc-14, cxx: g++-14 }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install GCC (if needed)
+        if: startsWith(matrix.compiler.cc, 'gcc')
+        run: |
+          # Homebrew uses @ instead of - for versioned packages (e.g., gcc@14)
+          FORMULA=$(echo "${{ matrix.compiler.cc }}" | sed 's/gcc-/gcc@/')
+          brew install "$FORMULA"
+
+      - name: Build and test
+        env:
+          CC: ${{ matrix.compiler.cc }}
+        run: make
+
+      - name: Build reference signer
+        env:
+          CC: ${{ matrix.compiler.cc }}
+        run: make reference_signer
