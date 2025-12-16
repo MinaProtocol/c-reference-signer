@@ -24,13 +24,7 @@ unit_tests: $(OBJS) *.c *.h
 	@./$@
 
 %.o: %.c %.h
-	$(CC) $(CFLAGS) -fPIC -Wall -Werror $< -c
+	$(CC) $(CFLAGS) -Wall -Werror $< -c
 
 clean:
-	rm -rf *.o *.log *.so *.a reference_signer unit_tests
-
-libmina_signer.a: $(OBJS)
-	ar rcs $@ $(OBJS)
-
-libmina_signer.so: $(OBJS)
-	$(CC) -shared -o $@ $(OBJS)
+	rm -rf *.o *.log reference_signer unit_tests
