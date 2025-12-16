@@ -1,0 +1,61 @@
+name: CI
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  build-ubuntu:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler:
+          - { cc: gcc-11, cxx: g++-11 }
+          - { cc: gcc-12, cxx: g++-12 }
+          - { cc: gcc-13, cxx: g++-13 }
+          - { cc: clang, cxx: clang++ }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install compiler
+        run: |
+          sudo apt-get update
+          if [[ "${{ matrix.compiler.cc }}" == gcc-* ]]; then
+            sudo apt-get install -y ${{ matrix.compiler.cc }} ${{ matrix.compiler.cxx }}
+          fi
+
+      - name: Build and test
+        env:
+          CC: ${{ matrix.compiler.cc }}
+        run: make
+
+      - name: Build reference signer
+        env:
+          CC: ${{ matrix.compiler.cc }}
+        run: make reference_signer
+
+  build-macos:
+    runs-on: macos-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler:
+          - { cc: clang, cxx: clang++ }
+          - { cc: gcc-13, cxx: g++-13 }
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install GCC (if needed)
+        if: startsWith(matrix.compiler.cc, 'gcc')
+        run: brew install ${{ matrix.compiler.cc }}
+
+      - name: Build and test
+        env:
+          CC: ${{ matrix.compiler.cc }}
+        run: make
+
+      - name: Build reference signer
+        env:
+          CC: ${{ matrix.compiler.cc }}
+        run: make reference_signer
