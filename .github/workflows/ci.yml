@@ -60,7 +60,10 @@ jobs:
 
       - name: Install GCC (if needed)
         if: startsWith(matrix.compiler.cc, 'gcc')
-        run: brew install ${{ matrix.compiler.cc }}
+        run: |
+          # Homebrew uses @ instead of - for versioned packages (e.g., gcc@14)
+          FORMULA=$(echo "${{ matrix.compiler.cc }}" | sed 's/gcc-/gcc@/')
+          brew install "$FORMULA"
 
       - name: Build and test
         env:
