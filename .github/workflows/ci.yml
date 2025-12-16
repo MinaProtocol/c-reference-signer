@@ -1,3 +1,10 @@
+# CI workflow for c-reference-signer
+#
+# Run locally with act (https://github.com/nektos/act):
+#   act -j build-ubuntu --container-architecture linux/amd64
+#
+# On Apple Silicon (M-series), always use --container-architecture linux/amd64
+
 name: CI
 
 on:
@@ -14,7 +21,9 @@ jobs:
           - { cc: gcc-11, cxx: g++-11 }
           - { cc: gcc-12, cxx: g++-12 }
           - { cc: gcc-13, cxx: g++-13 }
-          - { cc: clang, cxx: clang++ }
+          - { cc: gcc-14, cxx: g++-14 }
+          - { cc: clang-17, cxx: clang++-17 }
+          - { cc: clang-18, cxx: clang++-18 }
     steps:
       - uses: actions/checkout@v4
 
@@ -23,6 +32,8 @@ jobs:
           sudo apt-get update
           if [[ "${{ matrix.compiler.cc }}" == gcc-* ]]; then
             sudo apt-get install -y ${{ matrix.compiler.cc }} ${{ matrix.compiler.cxx }}
+          elif [[ "${{ matrix.compiler.cc }}" == clang-* ]]; then
+            sudo apt-get install -y ${{ matrix.compiler.cc }}
           fi
 
       - name: Build and test
@@ -43,6 +54,7 @@ jobs:
         compiler:
           - { cc: clang, cxx: clang++ }
           - { cc: gcc-13, cxx: g++-13 }
+          - { cc: gcc-14, cxx: g++-14 }
     steps:
       - uses: actions/checkout@v4
 
